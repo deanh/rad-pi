@@ -7,19 +7,26 @@ A [pi](https://github.com/badlogic/pi-mono) package for working with [Radicle](h
 Global (all projects):
 
 ```bash
-pi install git:seed.radicle.garden/zSM6rc7C18JjDxn4tj1r7PuP9QHc.git
+pi install npm:rad-pi
 ```
 
 Per-project (shared with your team via `.pi/settings.json`):
 
 ```bash
-pi install -l git:seed.radicle.garden/zSM6rc7C18JjDxn4tj1r7PuP9QHc.git
+pi install -l npm:rad-pi
 ```
 
 Try without installing:
 
 ```bash
-pi -e git:seed.radicle.garden/zSM6rc7C18JjDxn4tj1r7PuP9QHc.git
+pi -e npm:rad-pi
+```
+
+Also available via git:
+
+```bash
+pi install git:seed.radicle.garden/zSM6rc7C18JjDxn4tj1r7PuP9QHc.git
+pi install https://github.com/deanh/rad-pi
 ```
 
 ## Requirements
