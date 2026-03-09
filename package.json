@@ -16,6 +16,7 @@
     "extensions/",
     "skills/",
     "agents/",
+    "lib/",
     "LICENSE",
     "README.md",
     "CHANGELOG.md"
