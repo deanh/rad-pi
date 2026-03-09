@@ -125,6 +125,9 @@ rad-plan --version
 
 Extracted from [rad-skill](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:zvBj4kByGeQSrSy2c4H7fyK42cS8) which contains the original development history. The Claude Code plugin remains in that repository.
 
+**Radicle:** `rad:zSM6rc7C18JjDxn4tj1r7PuP9QHc`
+**GitHub mirror:** https://github.com/deanh/rad-pi
+
 ## License
 
 MIT
