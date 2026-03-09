@@ -6,7 +6,7 @@ import {
   mergeFilesTouched,
   extractContextId,
   parseCommitShas,
-} from "../extensions/rad-context-utils.ts";
+} from "../lib/rad-context-utils.ts";
 
 describe("stripMarkdownFences", () => {
   it("returns plain JSON unchanged", () => {

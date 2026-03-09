@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { buildSessionContext, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
-import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "./rad-context-utils.ts";
+import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "../lib/rad-context-utils.ts";
 
 interface RadContextState {
   isRadicleRepo: boolean;
