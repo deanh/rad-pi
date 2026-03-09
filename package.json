@@ -1,6 +1,7 @@
 {
   "name": "rad-pi",
   "version": "1.0.1",
+  "type": "module",
   "description": "Radicle skills and extensions for pi — peer-to-peer code collaboration with Plan COBs, Context COBs, and multi-agent worktree orchestration",
   "keywords": [
     "pi-package"
@@ -19,6 +20,9 @@
     "README.md",
     "CHANGELOG.md"
   ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",
     "@mariozechner/pi-coding-agent": "*",

@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { buildSessionContext, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
+import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "./rad-context-utils.ts";
 
 interface RadContextState {
   isRadicleRepo: boolean;
@@ -115,20 +116,13 @@ export default function (pi: ExtensionAPI) {
         return false;
       }
 
-      let contextJson: Record<string, unknown>;
-      try {
-        contextJson = JSON.parse(responseText);
-      } catch {
-        ctx.ui.notify("rad-context: extraction returned invalid JSON", "warning");
+      const parsed = parseExtractionResponse(responseText);
+      if (!parsed.ok) {
+        ctx.ui.notify(`rad-context: extraction ${parsed.error}`, "warning");
         return false;
       }
 
-      // Ensure filesTouched includes the mechanical file list
-      if (modifiedFiles.length > 0) {
-        const existing = Array.isArray(contextJson.filesTouched) ? contextJson.filesTouched as string[] : [];
-        const merged = [...new Set([...existing, ...modifiedFiles])];
-        contextJson.filesTouched = merged;
-      }
+      const contextJson = mergeFilesTouched(parsed.data, modifiedFiles);
 
       // Create the context COB
       const createResult = await pi.exec(
@@ -142,7 +136,7 @@ export default function (pi: ExtensionAPI) {
         return false;
       }
 
-      const contextId = createResult.stdout.trim().match(/([0-9a-f]{40})/)?.[1];
+      const contextId = extractContextId(createResult.stdout);
 
       if (contextId) {
         // Link commits from this session
@@ -153,7 +147,7 @@ export default function (pi: ExtensionAPI) {
         );
 
         if (logResult.code === 0) {
-          const commits = logResult.stdout.trim().split("\n").filter((l: string) => l.length > 0);
+          const commits = parseCommitShas(logResult.stdout);
           for (const sha of commits) {
             await pi.exec("rad-context", ["link", contextId, "--commit", sha], { timeout: 5000 });
           }
