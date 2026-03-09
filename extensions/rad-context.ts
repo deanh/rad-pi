@@ -68,7 +68,7 @@ export default function (pi: ExtensionAPI) {
     conversation: string,
     modifiedFiles: string[],
   ): Promise<boolean> {
-    const model = ctx.modelRegistry.find("anthropic", "claude-3-5-haiku-latest")
+    const model = ctx.modelRegistry.find("anthropic", "claude-4-5-haiku-latest")
       ?? ctx.modelRegistry.find("anthropic", "claude-haiku-4-5");
 
     if (!model) {
