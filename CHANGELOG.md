@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-19
+
+### Added
+
+- `rad-issue-loop` extension — autonomous issue processing loop with `/rad-issue-loop`, `/rad-issue-work`, `/rad-issue-skip`, `/rad-issue-check` commands
+- `rad-issue-loop` skill — workflow documentation for automated Radicle issue processing
+- Model fallback in `rad-context.ts` and `rad-issue-loop.ts` — uses session model when Haiku is unavailable
+
+### Fixed
+
+- TypeScript errors in `rad-issue-loop.ts` (parameter passing, type narrowing, const reassignment, notify type)
+
 ## [1.0.0] - 2026-03-09
 
 ### Added
