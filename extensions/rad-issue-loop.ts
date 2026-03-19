@@ -190,7 +190,7 @@ async function syncNetwork(pi: ExtensionAPI): Promise<boolean> {
 
 // --- Context Extraction ---
 
-async function getModifiedFilesSince(branchPoint: string): Promise<string[]> {
+async function getModifiedFilesSince(pi: ExtensionAPI, branchPoint: string): Promise<string[]> {
   const result = await pi.exec("git", ["diff", "--name-only", branchPoint], { timeout: 5000 });
   if (result.code !== 0) return [];
   return result.stdout.trim().split("\n").filter(l => l.length > 0);
@@ -258,11 +258,11 @@ async function extractAndCreateContext(
 
     const parsed = parseExtractionResponse(responseText);
     if (!parsed.ok) {
-      ctx.ui.notify(`rad-issue-loop: extraction ${parsed.error}`, "warning");
+      ctx.ui.notify(`rad-issue-loop: extraction ${(parsed as { error: string }).error}`, "warning");
       return null;
     }
 
-    const contextJson = mergeFilesTouched(parsed.data, modifiedFiles);
+    const contextJson = mergeFilesTouched((parsed as { data: Record<string, unknown> }).data, modifiedFiles);
 
     const createResult = await pi.exec(
       "bash",
@@ -556,7 +556,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const issueId = args?.trim();
+      let issueId = args?.trim();
       if (!issueId) {
         // Try to detect from branch name
         const branchResult = await pi.exec("git", ["branch", "--show-current"], { timeout: 5000 });
@@ -603,7 +603,7 @@ export default function (pi: ExtensionAPI) {
 
         const branchPointResult = await pi.exec("git", ["merge-base", "main", "HEAD"], { timeout: 5000 });
         const branchPoint = branchPointResult.code === 0 ? branchPointResult.stdout.trim() : "HEAD~1";
-        const modifiedFiles = await getModifiedFilesSince(branchPoint);
+        const modifiedFiles = await getModifiedFilesSince(pi, branchPoint);
 
         const contextId = await extractAndCreateContext(pi, ctx, conversation, modifiedFiles, issueId);
 
@@ -633,7 +633,7 @@ export default function (pi: ExtensionAPI) {
       // 4. Return to main
       await returnToMain(pi);
 
-      ctx.ui.notify(`Issue ${shortId(issueId)} complete!`, "success");
+      ctx.ui.notify(`Issue ${shortId(issueId)} complete!`, "info");
       ctx.ui.notify(`Commit: ${shortId(commitSha!)} | Patch: ${shortId(patchId!)}`, "info");
 
       // 5. Clear processed set and prompt for next issue
