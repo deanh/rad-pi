@@ -205,11 +205,20 @@ async function extractAndCreateContext(
 ): Promise<string | null> {
   if (!pi.exec) return null;
 
-  const model = ctx.modelRegistry.find("anthropic", "claude-4-5-haiku-latest")
+  // Prefer Haiku for cost-efficient extraction
+  let model = ctx.modelRegistry.find("anthropic", "claude-4-5-haiku-latest")
     ?? ctx.modelRegistry.find("anthropic", "claude-haiku-4-5");
 
+  // Fall back to session model if Haiku unavailable
   if (!model) {
-    ctx.ui.notify("rad-issue-loop: no Haiku model for context extraction", "warning");
+    model = ctx.model;
+    if (model) {
+      ctx.ui.notify(`rad-issue-loop: using session model (${model.id}) for extraction`, "info");
+    }
+  }
+
+  if (!model) {
+    ctx.ui.notify("rad-issue-loop: no model available for context extraction", "warning");
     return null;
   }
 
