@@ -42,13 +42,14 @@ All COB features gracefully degrade when their CLIs are not installed.
 
 ### Skills
 
-Three knowledge skills following the [Agent Skills](https://agentskills.io) standard:
+Four knowledge skills following the [Agent Skills](https://agentskills.io) standard:
 
 | Skill | Description |
 |-------|-------------|
 | **radicle** | Core `rad` CLI operations — init, clone, patch, issue, sync, node management |
 | **rad-plans** | Plan COBs (`me.hdh.plan`), `rad-plan` CLI, and interactive plan management |
 | **rad-contexts** | Context COBs (`me.hdh.context`) and `rad-context` CLI |
+| **rad-issue-loop** | Autonomous issue processing loop — check issues, work them, create contexts, submit patches |
 
 ### Extensions
 
@@ -56,6 +57,7 @@ Three knowledge skills following the [Agent Skills](https://agentskills.io) stan
 |-----------|-------------|
 | **rad-context** | Detects Radicle repos at session start, auto-creates Context COBs on compaction and shutdown, provides `/rad-context` command |
 | **rad-orchestrator** | Multi-agent worktree orchestration via `/rad-orchestrate <plan-id>` |
+| **rad-issue-loop** | Autonomous issue processing loop via `/rad-issue-loop` |
 
 ### Agent
 
@@ -92,6 +94,49 @@ Features:
 - Retry failed workers interactively
 - Context feedback from completed workers informs subsequent batches
 - File conflict detection prevents parallel workers from touching the same files
+
+### Issue Loop Commands
+
+#### `/rad-issue-loop [options]`
+
+Run autonomous issue processing loop:
+
+```
+/rad-issue-loop              # Interactive mode (prompts for issue selection)
+/rad-issue-loop --auto       # Autonomous mode (selects first eligible issue)
+/rad-issue-loop --oneshot    # Process one issue then stop
+/rad-issue-loop --labels bug,feature  # Filter issues by labels
+/rad-issue-loop --status     # Show loop status
+/rad-issue-loop --stop       # Stop a running loop
+```
+
+The loop:
+1. **Sync** with network
+2. **Check** for open issues
+3. **Select** an eligible issue (open, no existing patch, matches labels)
+4. **Work** the issue (creates branch, injects work prompt)
+5. After completion, use `/rad-issue-work` to commit, create context, and push patch
+6. **Repeat** from step 1
+
+#### `/rad-issue-work [issue-id]`
+
+Complete the current issue work:
+
+- Commits any pending changes
+- Creates a Context COB with session observations
+- Pushes a Radicle patch
+- Links patch to issue
+- Returns to main branch
+
+If `issue-id` is omitted, detects from the current branch name (`issue-*`).
+
+#### `/rad-issue-skip`
+
+Skip the current issue work and return to main branch.
+
+#### `/rad-issue-check`
+
+Check for new issues, patches, and contexts (syncs first).
 
 ## Context COBs
 

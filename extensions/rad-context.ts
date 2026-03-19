@@ -61,19 +61,31 @@ export default function (pi: ExtensionAPI) {
 
   /**
    * Shared extraction logic: takes a serialized conversation and file list,
-   * calls Haiku to extract structured observations, creates the Context COB,
+   * calls an LLM to extract structured observations, creates the Context COB,
    * links commits, and announces.
+   *
+   * Model selection: prefers Haiku for cost efficiency, falls back to the
+   * session model if Haiku is unavailable.
    */
   async function extractAndCreateContext(
     ctx: Parameters<Parameters<ExtensionAPI["on"]>[1]>[1],
     conversation: string,
     modifiedFiles: string[],
   ): Promise<boolean> {
-    const model = ctx.modelRegistry.find("anthropic", "claude-4-5-haiku-latest")
+    // Prefer Haiku for cost-efficient extraction
+    let model = ctx.modelRegistry.find("anthropic", "claude-4-5-haiku-latest")
       ?? ctx.modelRegistry.find("anthropic", "claude-haiku-4-5");
 
+    // Fall back to session model if Haiku unavailable
     if (!model) {
-      ctx.ui.notify("rad-context: no Haiku model found for context extraction", "warning");
+      model = ctx.model;
+      if (model) {
+        ctx.ui.notify(`rad-context: using session model (${model.id}) for extraction`, "info");
+      }
+    }
+
+    if (!model) {
+      ctx.ui.notify("rad-context: no model available for context extraction", "warning");
       return false;
     }
 
