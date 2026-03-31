@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
+import { syncNetwork, announceNetwork, shortId as sharedShortId } from "../lib/rad-shared.ts";
 
 // --- Constants ---
 
@@ -1210,6 +1211,123 @@ export default function (pi: ExtensionAPI) {
       }
 
       cleanupDashboard();
+    },
+  });
+
+  // /rad-orchestrate-loop command — poll for approved plans and execute them
+  pi.registerCommand("rad-orchestrate-loop", {
+    description: "Poll for approved plans and orchestrate their execution",
+    handler: async (args, ctx) => {
+      if (!state.isRadicleRepo) {
+        ctx.ui.notify("Not a Radicle repository", "error");
+        return;
+      }
+      if (!state.radPlanInstalled) {
+        ctx.ui.notify("rad-plan not installed. Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v", "error");
+        return;
+      }
+
+      const argList = args?.trim().split(/\s+/) ?? [];
+      const statusFlag = argList.includes("--status");
+      const stopFlag = argList.includes("--stop");
+      const oneshot = argList.includes("--oneshot");
+      const cooldownIdx = argList.indexOf("--cooldown");
+      const cooldownMs = cooldownIdx >= 0 ? parseInt(argList[cooldownIdx + 1] ?? "30000", 10) : 30000;
+
+      // Track loop state on the orchestrator state object
+      if (statusFlag) {
+        ctx.ui.notify(
+          `Orchestrate loop: ${(state as any)._loopRunning ? "running" : "stopped"}\n` +
+          `Plans executed: ${(state as any)._loopExecuted ?? 0}`,
+          "info",
+        );
+        return;
+      }
+
+      if (stopFlag) {
+        (state as any)._loopRunning = false;
+        ctx.ui.notify("Orchestrate loop stopped", "info");
+        ctx.ui.setStatus("rad-orchestrator", "loop stopped");
+        return;
+      }
+
+      (state as any)._loopRunning = true;
+      (state as any)._loopExecuted = 0;
+      ctx.ui.setStatus("rad-orchestrator", "loop: watching for approved plans");
+      ctx.ui.notify(
+        `Starting orchestrate loop...\n` +
+        `  Cooldown: ${cooldownMs / 1000}s\n` +
+        `  Oneshot: ${oneshot}`,
+        "info",
+      );
+
+      while ((state as any)._loopRunning) {
+        // 1. Sync
+        ctx.ui.notify("\n=== Orchestrate Loop: syncing... ===", "info");
+        await syncNetwork(pi);
+
+        // 2. Find approved plans
+        const listResult = await pi.exec("rad-plan", ["list", "--status", "approved"], { timeout: 10000 });
+        if (listResult.code !== 0) {
+          ctx.ui.notify("Failed to list plans", "warning");
+          if (oneshot) break;
+          await new Promise(r => setTimeout(r, cooldownMs));
+          continue;
+        }
+
+        const planIds = listResult.stdout.trim().split("\n")
+          .map(line => line.match(/^([0-9a-f]{7,40})/)?.[1])
+          .filter((id): id is string => !!id);
+
+        if (planIds.length === 0) {
+          ctx.ui.notify("No approved plans found.", "info");
+          if (oneshot) break;
+          ctx.ui.notify(`Waiting ${cooldownMs / 1000}s before next check...`, "info");
+          await new Promise(r => setTimeout(r, cooldownMs));
+          continue;
+        }
+
+        ctx.ui.notify(`Found ${planIds.length} approved plan(s)`, "info");
+        for (const pid of planIds) {
+          ctx.ui.notify(`  ◉ ${shortId(pid)}`, "info");
+        }
+
+        // 3. Execute the first approved plan
+        // Delegate to the existing /rad-orchestrate command
+        const targetPlanId = planIds[0];
+        ctx.ui.notify(`\nExecuting plan ${shortId(targetPlanId)}...`, "info");
+
+        // Set status to in-progress before executing
+        await pi.exec("rad-plan", ["status", targetPlanId, "in-progress"], { timeout: 10000 });
+
+        // Invoke the orchestrate command handler by sending it as a user message
+        // This reuses all the existing orchestration logic
+        pi.sendUserMessage(
+          `/rad-orchestrate ${targetPlanId}`,
+          { deliverAs: "command" },
+        );
+
+        (state as any)._loopExecuted++;
+
+        // After invoking, we need to yield control for the orchestration to run.
+        // In interactive mode, the orchestration will handle the rest.
+        // We'll break and let the user re-invoke the loop after plan completion.
+        ctx.ui.notify(
+          `Plan ${shortId(targetPlanId)} dispatched to /rad-orchestrate.\n` +
+          `Re-run /rad-orchestrate-loop after it completes to process the next plan.`,
+          "info",
+        );
+
+        if (oneshot) break;
+
+        // In a true auto mode, we'd need to wait for the orchestration to complete.
+        // For now, break and let the user re-run.
+        break;
+      }
+
+      (state as any)._loopRunning = false;
+      ctx.ui.setStatus("rad-orchestrator", "rad-plan ✓");
+      ctx.ui.notify("Orchestrate loop ended.", "info");
     },
   });
 }

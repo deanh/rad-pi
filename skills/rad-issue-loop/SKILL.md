@@ -1,202 +1,228 @@
 ---
 name: rad-issue-loop
-description: Autonomous issue worker loop - checks for new issues, works them to completion, creates context COBs, and submits patches. Use when you want to run an autonomous agent that processes Radicle issues.
-version: 0.1.0
+description: Autonomous issue worker loops - direct issue implementation and label-driven plan creation. Use when you want to run autonomous agents that process Radicle issues, create plans, and orchestrate execution.
+version: 0.2.0
 ---
 
-# Radicle Issue Loop Skill
+# Radicle Issue & Plan Loops
 
-This skill defines the workflow for autonomously processing Radicle issues in a continuous loop.
+This skill defines the two-loop architecture for autonomously processing Radicle issues:
 
-## Overview
+- **Loop 1a** (`/rad-issue-loop`): Direct implementation for simple issues
+- **Loop 1b** (`/rad-plan-loop`): Plan creation for complex issues (label-driven)
+- **Loop 2** (`/rad-orchestrate-loop`): Watches for approved plans and executes them
 
-The issue loop automates the following cycle:
+## Architecture
 
-1. **Sync** - Fetch latest changes from the network
-2. **Check Issues** - List open issues, identify new ones
-3. **Work Issue** - Implement a solution for the selected issue
-4. **Create Context** - Document learnings in a Context COB
-5. **Submit Patch** - Push changes as a Radicle patch
-6. **Clear Context** - Reset agent state for the next issue
-7. **Repeat** - Return to step 1
+```
+                    ┌──────────────┐
+                    │  Open Issue   │
+                    └──────┬───────┘
+                           │
+                    Has 'toplan' label?
+                    /              \
+                  No               Yes
+                  /                  \
+         ┌──────▼──────┐    ┌───────▼────────┐
+         │ rad-issue-   │    │  rad-plan-loop  │
+         │ loop         │    │  (Loop 1b)      │
+         │ (Loop 1a)    │    │                 │
+         │ Direct work  │    │ Creates Plan COB│
+         └──────┬───────┘    └───────┬─────────┘
+                │                    │
+                │              'toplan' → 'planned'
+                │              Plan status: draft
+                │                    │
+                │              Human reviews plan
+                │              (or --auto-approve)
+                │                    │
+                │              rad-plan status <id> approved
+                │                    │
+                │            ┌───────▼──────────┐
+                │            │ rad-orchestrate-  │
+                │            │ loop (Loop 2)     │
+                │            │                   │
+                │            │ Worktrees, workers │
+                │            │ context COBs       │
+                ▼            └───────┬────────────┘
+           Patch pushed              │
+                                Patch pushed
+```
 
 ## Prerequisites
 
 - Radicle CLI (`rad`) installed and authenticated
 - `rad-context` CLI installed for Context COBs
-- `rad-plan` CLI installed (optional, for plan-based workflows)
+- `rad-plan` CLI installed (required for Loop 1b and Loop 2)
 - Node is running (`rad node start`)
 
-## Workflow
+## Loop 1a: Direct Issue Work (`/rad-issue-loop`)
 
-### Step 1: Sync with Network
+For simple issues that don't need structured planning.
 
-```bash
-rad sync --fetch
-rad sync status
+### Commands
+
+```
+/rad-issue-loop                    # Start interactively
+/rad-issue-loop --auto             # Run without prompts
+/rad-issue-loop --oneshot          # Process one issue then stop
+/rad-issue-loop --labels bug       # Only process issues with 'bug' label
+/rad-issue-loop --exclude-label toplan  # Exclude label (default: 'toplan')
+/rad-issue-loop --status           # Show loop status
+/rad-issue-loop --stop             # Stop a running loop
 ```
 
-### Step 2: Check for Open Issues
+### Workflow
 
-```bash
-rad issue list
+1. **Sync** with the Radicle network
+2. **List** open issues (excluding `toplan`-labeled issues by default)
+3. **Select** an issue (interactive or auto)
+4. **Inject** work prompt into the agent (branch, implement, commit)
+5. **Complete** with `/rad-issue-work` (context COB, patch, announce)
+6. **Repeat**
+
+### Completing Work
+
+After the agent finishes implementing:
+
+```
+/rad-issue-work <issue-id>    # Or run from issue-* branch
 ```
 
-Identify issues that:
-- Are open (not closed)
-- Not already being worked on (check for linked patches/contexts)
-- Match any configured priority labels
+This commits changes, creates a Context COB, pushes a Radicle patch, and returns to main.
 
-For each candidate issue, get details:
+## Loop 1b: Plan Creation (`/rad-plan-loop`)
 
-```bash
-rad issue show <issue-id>
+Watches for issues labeled `toplan` and creates Plan COBs from them.
+
+### Commands
+
+```
+/rad-plan-loop                     # Start watching for 'toplan' issues
+/rad-plan-loop --auto-approve      # Create plans and set status to 'approved'
+/rad-plan-loop --oneshot           # Process current batch then stop
+/rad-plan-loop --plan-label mytag  # Use custom label (default: 'toplan')
+/rad-plan-loop --planned-label done  # Custom "processed" label (default: 'planned')
+/rad-plan-loop --max-plans 3       # Stop after creating N plans
+/rad-plan-loop --status            # Show loop status
+/rad-plan-loop --stop              # Stop a running loop
 ```
 
-### Step 3: Work the Issue
+### Quick Check
 
-Before starting work:
-
-1. **Create a feature branch:**
-   ```bash
-   git checkout -b issue-<issue-id>
-   ```
-
-2. **Read the issue carefully** and understand requirements
-
-3. **Check for related contexts** that may inform the approach:
-   ```bash
-   rad-context list
-   rad-context show <context-id> --json
-   ```
-
-4. **Implement the solution** following codebase conventions
-
-5. **Run verification** (tests, lints, builds):
-   ```bash
-   # Run project-appropriate verification commands
-   ```
-
-### Step 4: Create Context COB
-
-Document the session:
-
-```bash
-echo '{
-  "title": "Fix: <brief description>",
-  "description": "<what was done>",
-  "approach": "<reasoning, alternatives considered>",
-  "constraints": ["<assumptions that must remain true>"],
-  "learnings": {
-    "repo": ["<patterns discovered>"],
-    "code": [{"path": "<file>", "line": 0, "finding": "<insight>"}]
-  },
-  "friction": ["<problems encountered>"],
-  "openItems": ["<unfinished work>"],
-  "filesTouched": ["<modified files>"],
-  "verification": [
-    {"check": "<command>", "result": "pass", "note": "<detail>"}
-  ]
-}' | rad-context create --json
+```
+/rad-plan-check                    # Show toplan/planned issues and approved plans
 ```
 
-Link the context to the issue:
+### Workflow
 
-```bash
-rad-context link <context-id> --issue <issue-id>
+1. **Sync** with the Radicle network
+2. **Find** open issues with the `toplan` label
+3. **Check idempotency**: skip issues that already have a linked plan
+4. **Analyze** the issue and codebase via LLM
+5. **Create** a Plan COB with structured tasks, estimates, and affected files
+6. **Link** the plan to the issue
+7. **Swap labels**: remove `toplan`, add `planned`
+8. **Set status**: `draft` (default) or `approved` (with `--auto-approve`)
+9. **Announce** to the network
+10. **Repeat**
+
+### Label Lifecycle
+
+```
+Issue created with 'toplan' label
+        │
+        ▼
+rad-plan-loop picks it up
+        │
+        ▼
+Plan COB created, linked to issue
+        │
+        ▼
+Label swapped: 'toplan' → 'planned'
+        │
+        ▼
+Human re-adds 'toplan'?  →  New plan created (supports multiple plans per issue)
 ```
 
-### Step 5: Submit Patch
+### Plan Quality
 
-Commit changes:
+The planning LLM is instructed to:
+- Explore the actual codebase file tree before generating tasks
+- Use real file paths in `affectedFiles` (critical for orchestrator conflict detection)
+- Break work into 3-7 independently implementable tasks
+- Include test tasks alongside implementation tasks
+- Express task ordering via `blocked_by` references
 
-```bash
-git add <files>
-git commit -m "<conventional commit message>"
+## Loop 2: Plan Execution (`/rad-orchestrate-loop`)
+
+Watches for approved plans and dispatches them to the orchestrator.
+
+### Commands
+
+```
+/rad-orchestrate-loop              # Start watching for approved plans
+/rad-orchestrate-loop --oneshot    # Execute one plan then stop
+/rad-orchestrate-loop --cooldown 60000  # Set poll interval (ms)
+/rad-orchestrate-loop --status     # Show loop status
+/rad-orchestrate-loop --stop       # Stop
 ```
 
-Push as a patch:
+### Workflow
+
+1. **Sync** with the Radicle network
+2. **List** plans with status `approved`
+3. **Set** plan status to `in-progress`
+4. **Delegate** to `/rad-orchestrate <plan-id>` for full worktree dispatch
+5. After completion, **loop** back to check for more plans
+
+### Approving Plans
+
+After `rad-plan-loop` creates a draft plan:
 
 ```bash
-git push rad HEAD:refs/patches
+# Review the plan
+rad-plan show <plan-id>
+
+# Edit tasks if needed
+rad-plan task edit <plan-id> <task-id> --description "Updated details"
+
+# Approve when ready
+rad-plan status <plan-id> approved
 ```
 
-Link patch to issue (if the push output provides the patch ID):
+## Composable Workflows
 
-```bash
-rad issue comment <issue-id> "Patch submitted: <patch-id>"
-```
-
-Announce to network:
-
-```bash
-rad sync --announce
-```
-
-### Step 6: Clear Context
-
-Return to main branch:
-
-```bash
-git checkout main
-git pull
-```
-
-Reset working state for the next issue.
-
-### Step 7: Check for New COBs
-
-Before looping, check for new collaborative objects:
-
-```bash
-# Check for new issues
-rad issue list
-
-# Check for new patches (may need review)
-rad patch list
-
-# Check for new contexts (may contain relevant learnings)
-rad-context list
-```
-
-### Loop
-
-Return to Step 1 and repeat.
+| Workflow | Commands |
+|----------|----------|
+| Fully manual | Human creates plans, `/rad-orchestrate <id>` |
+| Planning only | `/rad-plan-loop` → human reviews → manual orchestrate |
+| Full auto with human gate | `/rad-plan-loop` + `/rad-orchestrate-loop` (human approves between) |
+| Full auto, no gate | `/rad-plan-loop --auto-approve` + `/rad-orchestrate-loop` |
+| Simple issues only | `/rad-issue-loop` (no plans involved) |
+| Mixed | `/rad-issue-loop` for simple + `/rad-plan-loop` for complex |
 
 ## Configuration
 
-The loop can be configured via:
-
-- **Labels** - Only process issues with specific labels (e.g., `good-first-issue`, `bug`)
-- **Priority** - Process issues in priority order
-- **Exclusion** - Skip issues matching certain patterns
-- **Batch size** - Process N issues before syncing
-- **Cooldown** - Wait period between issues
-
-## Extension API
-
-The `/rad-issue-loop` command provides:
-
-```
-/rad-issue-loop              # Start the loop interactively
-/rad-issue-loop --auto       # Run without prompts (autonomous mode)
-/rad-issue-loop --labels bug,feature  # Filter by labels
-/rad-issue-loop --oneshot    # Process one issue then stop
-/rad-issue-loop --status     # Show loop status
-/rad-issue-loop --stop       # Stop a running loop
-```
+- **Plan label**: `--plan-label <label>` (default: `toplan`)
+- **Planned label**: `--planned-label <label>` (default: `planned`)
+- **Exclude label**: `--exclude-label <label>` on issue loop (default: `toplan`)
+- **Max plans**: `--max-plans <n>` to throttle plan creation
+- **Cooldown**: Wait period between iterations (default: 30s)
 
 ## Error Handling
 
-- If issue work fails: log error, leave branch, continue to next issue
-- If patch push fails: preserve commit, report error
-- If context creation fails: continue without context (non-blocking)
-- If sync fails: retry with exponential backoff
+- If plan creation fails: log error, skip issue, continue to next
+- If an issue already has a linked plan: skip (idempotent)
+- If `rad-plan` is not installed: report and suggest installation
+- If LLM call fails: report error, continue
+- If label operations fail: non-blocking, continue
 
 ## Boundaries
 
 - **Do NOT** close issues directly (patches should resolve them)
-- **Do NOT** work on issues with existing open patches (check first)
-- **Do NOT** modify issues you didn't create unless delegated
-- **DO** create one commit and one context per issue
-- **DO** link context to issue and commits
+- **Do NOT** work on `toplan` issues in the direct loop (they belong to plan-loop)
+- **Do NOT** approve plans automatically unless `--auto-approve` is set
+- **DO** create one plan per `toplan` issue (re-adding label creates a new plan)
+- **DO** link plans to issues for traceability
+- **DO** swap labels to signal processing state
