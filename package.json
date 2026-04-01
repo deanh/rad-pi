@@ -1,6 +1,6 @@
 {
   "name": "rad-pi",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "Radicle skills and extensions for pi — peer-to-peer code collaboration with Plan COBs, Context COBs, and multi-agent worktree orchestration",
   "keywords": [
