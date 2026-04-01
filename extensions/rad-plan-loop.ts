@@ -119,8 +119,8 @@ async function createPlanFromIssue(
     return null;
   }
 
-  const apiKey = await ctx.modelRegistry.getApiKey(model);
-  if (!apiKey) {
+  const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+  if (!auth.ok) {
     ctx.ui.notify(`rad-plan-loop: no API key for ${model.provider}`, "error");
     return null;
   }
@@ -138,7 +138,7 @@ async function createPlanFromIssue(
           timestamp: Date.now(),
         }],
       },
-      { apiKey, maxTokens: 8192 },
+      { apiKey: auth.apiKey, headers: auth.headers, maxTokens: 8192 },
     );
 
     const responseText = response.content

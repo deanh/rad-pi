@@ -80,8 +80,8 @@ async function extractAndCreateContext(
     return null;
   }
 
-  const apiKey = await ctx.modelRegistry.getApiKey(model);
-  if (!apiKey) {
+  const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+  if (!auth.ok) {
     ctx.ui.notify(`rad-issue-loop: no API key for ${model.provider}`, "warning");
     return null;
   }
@@ -103,7 +103,7 @@ async function extractAndCreateContext(
           timestamp: Date.now(),
         }],
       },
-      { apiKey, maxTokens: 4096 },
+      { apiKey: auth.apiKey, headers: auth.headers, maxTokens: 4096 },
     );
 
     const responseText = response.content

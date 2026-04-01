@@ -89,8 +89,8 @@ export default function (pi: ExtensionAPI) {
       return false;
     }
 
-    const apiKey = await ctx.modelRegistry.getApiKey(model);
-    if (!apiKey) {
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (!auth.ok) {
       ctx.ui.notify(`rad-context: no API key for ${model.provider}`, "warning");
       return false;
     }
@@ -114,7 +114,7 @@ export default function (pi: ExtensionAPI) {
             timestamp: Date.now(),
           }],
         },
-        { apiKey, maxTokens: 4096 },
+        { apiKey: auth.apiKey, headers: auth.headers, maxTokens: 4096 },
       );
 
       const responseText = response.content
@@ -130,7 +130,7 @@ export default function (pi: ExtensionAPI) {
 
       const parsed = parseExtractionResponse(responseText);
       if (!parsed.ok) {
-        ctx.ui.notify(`rad-context: extraction ${parsed.error}`, "warning");
+        ctx.ui.notify(`rad-context: extraction ${'error' in parsed ? parsed.error : 'unknown error'}`, "warning");
         return false;
       }
 
