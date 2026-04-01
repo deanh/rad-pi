@@ -72,13 +72,17 @@ Output ONLY valid JSON matching this schema — no markdown fences, no commentar
 }
 
 Rules:
+- DEFAULT TO A SINGLE TASK. Most issues — bug fixes, small features, config changes, label tweaks — should produce exactly one task. A single coherent commit is better than fragmented worktree overhead for focused changes.
+- Only decompose into multiple tasks when ALL of these apply:
+  (a) The work spans genuinely independent subsystems (e.g. backend API + frontend UI + infra config)
+  (b) Parallel execution across independent files would provide a real speedup
+  (c) The scope exceeds ~300 lines of changes across 5+ files
 - Each task should be independently implementable (2-8 hours of work)
 - affectedFiles must be REAL file paths from the codebase — explore before guessing
 - Use blocked_by to express task ordering: reference task indices as "task-0", "task-1", etc.
-- Include test tasks alongside implementation tasks
+- Include tests in the same task as the implementation unless the test suite is in a separate subsystem
 - Keep tasks scoped: one logical change per task
-- Order tasks by dependency (tasks with no blockers first)
-- Prefer 3-7 tasks for most features; split larger work into phases`;
+- Order tasks by dependency (tasks with no blockers first)`;
 
 // --- Plan Creation ---
 
