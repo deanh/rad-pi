@@ -18,8 +18,7 @@ import {
   detectCapabilities,
   listOpenIssues,
   issueHasLinkedPlan,
-  addLabel,
-  removeLabel,
+  swapLabels,
 } from "../lib/rad-shared.ts";
 
 // --- Types ---
@@ -359,10 +358,7 @@ export default function (pi: ExtensionAPI) {
             // Clean up stale label if issue already has a plan but still has toplan
             if (issue.labels.includes(state.planLabel)) {
               ctx.ui.notify(`  Cleaning stale '${state.planLabel}' label from ${shortId(issue.id)}`, "info");
-              await removeLabel(pi, issue.id, state.planLabel);
-              if (!issue.labels.includes(state.plannedLabel)) {
-                await addLabel(pi, issue.id, state.plannedLabel);
-              }
+              await swapLabels(pi, issue.id, state.plannedLabel, state.planLabel);
             }
           } else {
             candidates.push(issue);
@@ -400,26 +396,14 @@ export default function (pi: ExtensionAPI) {
           const planStatus = autoApprove ? "approved" : "draft";
           await pi.exec("rad-plan", ["status", planId, planStatus], { timeout: 10000 });
 
-          // Swap labels: add planned first, then remove toplan.
-          // Adding first ensures the issue is always in at least one column.
-          // If either fails, retry the failed operation before continuing.
-          const addOk = await addLabel(pi, issue.id, state.plannedLabel);
-          if (!addOk) {
-            ctx.ui.notify(`Label swap: failed to add '${state.plannedLabel}', retrying...`, "warning");
-            await addLabel(pi, issue.id, state.plannedLabel);
-          }
-
-          const removeOk = await removeLabel(pi, issue.id, state.planLabel);
+          // Swap labels: add planned, then remove toplan with delay + verification
+          const { removeOk } = await swapLabels(pi, issue.id, state.plannedLabel, state.planLabel);
           if (!removeOk) {
-            ctx.ui.notify(`Label swap: failed to remove '${state.planLabel}', retrying...`, "warning");
-            const retryOk = await removeLabel(pi, issue.id, state.planLabel);
-            if (!retryOk) {
-              ctx.ui.notify(
-                `Label swap: could not remove '${state.planLabel}' from ${shortId(issue.id)}. ` +
-                `Issue has both labels — fix manually: rad issue label ${shortId(issue.id)} --remove ${state.planLabel}`,
-                "error",
-              );
-            }
+            ctx.ui.notify(
+              `Label swap: could not remove '${state.planLabel}' from ${shortId(issue.id)}. ` +
+              `Issue has both labels — fix manually: rad issue label ${shortId(issue.id)} --remove ${state.planLabel}`,
+              "error",
+            );
           }
 
           // Announce

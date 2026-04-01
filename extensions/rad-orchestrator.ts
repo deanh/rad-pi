@@ -156,6 +156,33 @@ function findSignalFiles(plan: Plan): Map<string, string[]> {
   return signals;
 }
 
+/**
+ * Ensure a DONE comment exists for a completed task.
+ * If the worker didn't post one, the orchestrator posts it as a safety net
+ * so that cross-session state is always consistent.
+ */
+async function ensureDoneComment(
+  pi: ExtensionAPI,
+  planId: string,
+  taskId: string,
+  commitSha: string,
+): Promise<boolean> {
+  const plan = await loadPlan(pi, planId);
+  if (!plan) return false;
+
+  const doneCommits = findDoneTaskCommits(plan);
+  if (doneCommits.has(shortId(taskId)) || doneCommits.has(taskId)) {
+    return true; // Already posted by the worker
+  }
+
+  // Post on behalf of the worker
+  const result = await pi.exec("rad-plan", [
+    "comment", planId,
+    `DONE task:${shortId(taskId)} commit:${commitSha}`,
+  ], { timeout: 10000 });
+  return result.code === 0;
+}
+
 function getEffectiveFiles(task: PlanTask, signals: Map<string, string[]>): string[] {
   const base = task.affectedFiles ?? [];
   const extra = signals.get(shortId(task.id)) ?? signals.get(task.id) ?? [];
@@ -1063,6 +1090,16 @@ export default function (pi: ExtensionAPI) {
         for (const r of succeeded) {
           if (r.commitSha) {
             workerCommits.set(r.taskId, r.commitSha);
+          }
+        }
+
+        // Ensure DONE comments exist for all successful workers (safety net for unreliable agents)
+        for (const r of succeeded) {
+          if (r.commitSha) {
+            const posted = await ensureDoneComment(pi, planId, r.taskId, r.commitSha);
+            if (!posted) {
+              ctx.ui.notify(`  Warning: could not verify DONE comment for ${shortId(r.taskId)}`, "warning");
+            }
           }
         }
 

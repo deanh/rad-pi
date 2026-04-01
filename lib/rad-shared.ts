@@ -210,6 +210,53 @@ export async function removeLabel(pi: ExtensionAPI, issueId: string, label: stri
   return result.code === 0;
 }
 
+/**
+ * Swap labels on an issue: add one label, then remove another.
+ * Uses a delay between operations to avoid Radicle CRDT storage contention,
+ * and verifies removal via getIssueDetails() to handle cases where the CLI
+ * returns an error but the operation actually succeeded.
+ */
+export async function swapLabels(
+  pi: ExtensionAPI,
+  issueId: string,
+  addLbl: string,
+  removeLbl: string,
+  opts?: { maxRetries?: number; delayMs?: number },
+): Promise<{ addOk: boolean; removeOk: boolean }> {
+  const maxRetries = opts?.maxRetries ?? 2;
+  const delayMs = opts?.delayMs ?? 1000;
+
+  // Step 1: Add the new label with retries
+  let addOk = false;
+  for (let i = 0; i <= maxRetries; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delayMs));
+    addOk = await addLabel(pi, issueId, addLbl);
+    if (addOk) break;
+  }
+
+  // Step 2: Delay to let CRDT store flush before the remove
+  await new Promise(r => setTimeout(r, delayMs));
+
+  // Step 3: Remove the old label with retries + verification
+  let removeOk = false;
+  for (let i = 0; i <= maxRetries; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delayMs));
+    const cliOk = await removeLabel(pi, issueId, removeLbl);
+    if (cliOk) {
+      removeOk = true;
+      break;
+    }
+    // CLI failed — verify whether the label is actually gone
+    const issue = await getIssueDetails(pi, issueId);
+    if (issue && !issue.labels.includes(removeLbl)) {
+      removeOk = true;
+      break;
+    }
+  }
+
+  return { addOk, removeOk };
+}
+
 // --- Git Operations ---
 
 export async function returnToMain(pi: ExtensionAPI): Promise<void> {
