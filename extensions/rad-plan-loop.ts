@@ -356,6 +356,14 @@ export default function (pi: ExtensionAPI) {
           const hasLinked = await issueHasLinkedPlan(pi, issue.id);
           if (hasLinked) {
             ctx.ui.notify(`  Skipping ${shortId(issue.id)}: already has a linked plan`, "info");
+            // Clean up stale label if issue already has a plan but still has toplan
+            if (issue.labels.includes(state.planLabel)) {
+              ctx.ui.notify(`  Cleaning stale '${state.planLabel}' label from ${shortId(issue.id)}`, "info");
+              await removeLabel(pi, issue.id, state.planLabel);
+              if (!issue.labels.includes(state.plannedLabel)) {
+                await addLabel(pi, issue.id, state.plannedLabel);
+              }
+            }
           } else {
             candidates.push(issue);
           }
@@ -392,9 +400,27 @@ export default function (pi: ExtensionAPI) {
           const planStatus = autoApprove ? "approved" : "draft";
           await pi.exec("rad-plan", ["status", planId, planStatus], { timeout: 10000 });
 
-          // Swap labels: remove plan label, add planned label
-          await removeLabel(pi, issue.id, state.planLabel);
-          await addLabel(pi, issue.id, state.plannedLabel);
+          // Swap labels: add planned first, then remove toplan.
+          // Adding first ensures the issue is always in at least one column.
+          // If either fails, retry the failed operation before continuing.
+          const addOk = await addLabel(pi, issue.id, state.plannedLabel);
+          if (!addOk) {
+            ctx.ui.notify(`Label swap: failed to add '${state.plannedLabel}', retrying...`, "warning");
+            await addLabel(pi, issue.id, state.plannedLabel);
+          }
+
+          const removeOk = await removeLabel(pi, issue.id, state.planLabel);
+          if (!removeOk) {
+            ctx.ui.notify(`Label swap: failed to remove '${state.planLabel}', retrying...`, "warning");
+            const retryOk = await removeLabel(pi, issue.id, state.planLabel);
+            if (!retryOk) {
+              ctx.ui.notify(
+                `Label swap: could not remove '${state.planLabel}' from ${shortId(issue.id)}. ` +
+                `Issue has both labels — fix manually: rad issue label ${shortId(issue.id)} --remove ${state.planLabel}`,
+                "error",
+              );
+            }
+          }
 
           // Announce
           await announceNetwork(pi);
