@@ -300,7 +300,7 @@ async function loadContextFeedback(pi: ExtensionAPI, planId: string): Promise<Co
   if (listResult.code !== 0) return [];
 
   const contextIds = listResult.stdout.trim().split("\n")
-    .map(line => line.match(/^([0-9a-f]{7,40})/)?.[1])
+    .map(line => line.match(/\b([0-9a-f]{7,40})\b/)?.[1])
     .filter((id): id is string => !!id);
 
   const feedback: ContextFeedback[] = [];
@@ -1276,7 +1276,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         const planIds = listResult.stdout.trim().split("\n")
-          .map(line => line.match(/^([0-9a-f]{7,40})/)?.[1])
+          .map(line => line.match(/\b([0-9a-f]{7,40})\b/)?.[1])
           .filter((id): id is string => !!id);
 
         if (planIds.length === 0) {

@@ -77,21 +77,29 @@ export async function detectCapabilities(pi: ExtensionAPI): Promise<RadicleCapab
 // --- Issue Operations ---
 
 /**
+ * Get the Radicle repository ID for the current working directory.
+ */
+async function getRepoId(pi: ExtensionAPI): Promise<string | null> {
+  const result = await pi.exec("rad", ["."], { timeout: 5000 });
+  return result.code === 0 ? result.stdout.trim() : null;
+}
+
+/**
  * List open issues, optionally filtering by label.
- * Returns parsed issue objects with full details.
+ * Uses `rad cob list` + `rad cob show` for reliable JSON parsing.
  */
 export async function listOpenIssues(pi: ExtensionAPI, labelFilter?: string[]): Promise<Issue[]> {
-  const result = await pi.exec("rad", ["issue", "list", "--all"], { timeout: 10000 });
-  if (result.code !== 0) return [];
+  const repoId = await getRepoId(pi);
+  if (!repoId) return [];
 
-  const lines = result.stdout.trim().split("\n").filter(l => l.trim());
+  const listResult = await pi.exec("rad", ["cob", "list", "--repo", repoId, "--type", "xyz.radicle.issue"], { timeout: 10000 });
+  if (listResult.code !== 0) return [];
+
+  const issueIds = listResult.stdout.trim().split("\n").filter(l => l.trim());
   const issues: Issue[] = [];
 
-  for (const line of lines) {
-    const match = line.match(/^([0-9a-f]{7,40})/);
-    if (!match) continue;
-
-    const issue = await getIssueDetails(pi, match[1]);
+  for (const id of issueIds) {
+    const issue = await getIssueDetails(pi, id);
     if (!issue) continue;
     if (issue.status !== "open") continue;
 
@@ -107,35 +115,49 @@ export async function listOpenIssues(pi: ExtensionAPI, labelFilter?: string[]): 
 }
 
 /**
- * Get full details for a single issue.
+ * Get full details for a single issue using JSON COB output.
+ * Accepts both short and full IDs; resolves short IDs via `rad cob list`.
  */
 export async function getIssueDetails(pi: ExtensionAPI, issueId: string): Promise<Issue | null> {
-  const result = await pi.exec("rad", ["issue", "show", issueId], { timeout: 5000 });
+  const repoId = await getRepoId(pi);
+  if (!repoId) return null;
+
+  // Resolve short IDs to full IDs
+  let fullId = issueId;
+  if (issueId.length < 40) {
+    const listResult = await pi.exec("rad", ["cob", "list", "--repo", repoId, "--type", "xyz.radicle.issue"], { timeout: 10000 });
+    if (listResult.code !== 0) return null;
+    const match = listResult.stdout.trim().split("\n").find(l => l.startsWith(issueId));
+    if (!match) return null;
+    fullId = match.trim();
+  }
+
+  const result = await pi.exec("rad", ["cob", "show", "--repo", repoId, "--type", "xyz.radicle.issue", "--object", fullId], { timeout: 5000 });
   if (result.code !== 0) return null;
 
-  const output = result.stdout;
-  const titleMatch = output.match(/title:\s*(.+)/i);
-  const statusMatch = output.match(/status:\s*(\w+)/i);
+  try {
+    const cob = JSON.parse(result.stdout.trim());
 
-  // Parse labels from output (format varies, try common patterns)
-  const labelsMatch = output.match(/labels:\s*(.+)/i);
-  const labels = labelsMatch
-    ? labelsMatch[1].split(",").map(l => l.trim()).filter(Boolean)
-    : [];
+    // Extract description from the first comment in the thread
+    let description = "";
+    const comments = cob.thread?.comments ?? {};
+    const firstCommentId = cob.thread?.timeline?.[0];
+    if (firstCommentId && comments[firstCommentId]) {
+      description = comments[firstCommentId].body ?? "";
+    }
 
-  // Extract description (everything after the header section)
-  const descMatch = output.match(/\n\n([\s\S]*)/);
-  const description = descMatch ? descMatch[1].trim() : "";
-
-  return {
-    id: issueId,
-    title: titleMatch?.[1]?.trim() ?? "Untitled",
-    status: statusMatch?.[1]?.trim() ?? "open",
-    labels,
-    assignees: [],
-    description,
-    discussion: { comments: {} },
-  };
+    return {
+      id: fullId,
+      title: cob.title ?? "Untitled",
+      status: cob.state?.status ?? "open",
+      labels: cob.labels ?? [],
+      assignees: cob.assignees ?? [],
+      description,
+      discussion: { comments },
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -148,7 +170,7 @@ export async function issueHasLinkedPlan(pi: ExtensionAPI, issueId: string): Pro
 
   // Parse plan list and check each for the issue link
   const planIds = result.stdout.trim().split("\n")
-    .map(line => line.match(/^([0-9a-f]{7,40})/)?.[1])
+    .map(line => line.match(/\b([0-9a-f]{7,40})\b/)?.[1])
     .filter((id): id is string => !!id);
 
   for (const planId of planIds) {

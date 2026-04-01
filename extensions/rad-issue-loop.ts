@@ -446,10 +446,13 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify(`  - ${shortId(issue.id)}: ${issue.title} [${issue.labels.join(", ") || "no labels"}]`, "info");
       }
 
-      const patchResult = await pi.exec("rad", ["patch", "list"], { timeout: 10000 });
-      if (patchResult.code === 0) {
-        const patches = patchResult.stdout.trim().split("\n").filter(l => l.trim());
-        ctx.ui.notify(`Patches: ${patches.length} total`, "info");
+      const repoId = (await pi.exec("rad", ["."], { timeout: 5000 })).stdout.trim();
+      if (repoId) {
+        const patchResult = await pi.exec("rad", ["cob", "list", "--repo", repoId, "--type", "xyz.radicle.patch"], { timeout: 10000 });
+        if (patchResult.code === 0) {
+          const patches = patchResult.stdout.trim().split("\n").filter(l => l.trim());
+          ctx.ui.notify(`Patches: ${patches.length} total`, "info");
+        }
       }
 
       if (state.caps.radContextInstalled) {

@@ -248,8 +248,14 @@ export default function (pi: ExtensionAPI) {
     if (allMessages.length === 0) return;
 
     state.stashedConversation = serializeConversation(convertToLlm(allMessages));
-    state.stashedModifiedFiles = preparation.fileOps?.modifiedFiles ?? [];
-    state.stashedReadFiles = preparation.fileOps?.readFiles ?? [];
+    if (preparation.fileOps) {
+      const modified = new Set([...preparation.fileOps.written, ...preparation.fileOps.edited]);
+      state.stashedModifiedFiles = [...modified];
+      state.stashedReadFiles = [...preparation.fileOps.read].filter(f => !modified.has(f));
+    } else {
+      state.stashedModifiedFiles = [];
+      state.stashedReadFiles = [];
+    }
   });
 
   // Mid-session: after compaction, extract context from the compacted portion
