@@ -19,7 +19,7 @@ This skill defines the two-loop architecture for autonomously processing Radicle
                     │  Open Issue   │
                     └──────┬───────┘
                            │
-                    Has 'toplan' label?
+                    Has 'TODO' label?
                     /              \
                   No               Yes
                   /                  \
@@ -30,7 +30,7 @@ This skill defines the two-loop architecture for autonomously processing Radicle
          │ Direct work  │    │ Creates Plan COB│
          └──────┬───────┘    └───────┬─────────┘
                 │                    │
-                │              'toplan' → 'planned'
+                │              'TODO' → 'ready'
                 │              Plan status: draft
                 │                    │
                 │              Human reviews plan
@@ -67,7 +67,7 @@ For simple issues that don't need structured planning.
 /rad-issue-loop --auto             # Run without prompts
 /rad-issue-loop --oneshot          # Process one issue then stop
 /rad-issue-loop --labels bug       # Only process issues with 'bug' label
-/rad-issue-loop --exclude-label toplan  # Exclude label (default: 'toplan')
+/rad-issue-loop --exclude-label TODO  # Exclude label (default: 'TODO')
 /rad-issue-loop --status           # Show loop status
 /rad-issue-loop --stop             # Stop a running loop
 ```
@@ -75,7 +75,7 @@ For simple issues that don't need structured planning.
 ### Workflow
 
 1. **Sync** with the Radicle network
-2. **List** open issues (excluding `toplan`-labeled issues by default)
+2. **List** open issues (excluding `TODO`-labeled issues by default)
 3. **Select** an issue (interactive or auto)
 4. **Inject** work prompt into the agent (branch, implement, commit)
 5. **Complete** with `/rad-issue-work` (context COB, patch, announce)
@@ -93,16 +93,16 @@ This commits changes, creates a Context COB, pushes a Radicle patch, and returns
 
 ## Loop 1b: Plan Creation (`/rad-plan-loop`)
 
-Watches for issues labeled `toplan` and creates Plan COBs from them.
+Watches for issues labeled `TODO` and creates Plan COBs from them.
 
 ### Commands
 
 ```
-/rad-plan-loop                     # Start watching for 'toplan' issues
+/rad-plan-loop                     # Start watching for 'TODO' issues
 /rad-plan-loop --auto-approve      # Create plans and set status to 'approved'
 /rad-plan-loop --oneshot           # Process current batch then stop
-/rad-plan-loop --plan-label mytag  # Use custom label (default: 'toplan')
-/rad-plan-loop --planned-label done  # Custom "processed" label (default: 'planned')
+/rad-plan-loop --plan-label mytag  # Use custom label (default: 'TODO')
+/rad-plan-loop --planned-label done  # Custom "processed" label (default: 'ready')
 /rad-plan-loop --max-plans 3       # Stop after creating N plans
 /rad-plan-loop --status            # Show loop status
 /rad-plan-loop --stop              # Stop a running loop
@@ -111,18 +111,18 @@ Watches for issues labeled `toplan` and creates Plan COBs from them.
 ### Quick Check
 
 ```
-/rad-plan-check                    # Show toplan/planned issues and approved plans
+/rad-plan-check                    # Show TODO/ready issues and approved plans
 ```
 
 ### Workflow
 
 1. **Sync** with the Radicle network
-2. **Find** open issues with the `toplan` label
+2. **Find** open issues with the `TODO` label
 3. **Check idempotency**: skip issues that already have a linked plan
 4. **Analyze** the issue and codebase via LLM
 5. **Create** a Plan COB with structured tasks, estimates, and affected files
 6. **Link** the plan to the issue
-7. **Swap labels**: remove `toplan`, add `planned`
+7. **Swap labels**: remove `TODO`, add `ready`
 8. **Set status**: `draft` (default) or `approved` (with `--auto-approve`)
 9. **Announce** to the network
 10. **Repeat**
@@ -130,7 +130,7 @@ Watches for issues labeled `toplan` and creates Plan COBs from them.
 ### Label Lifecycle
 
 ```
-Issue created with 'toplan' label
+Issue created with 'TODO' label
         │
         ▼
 rad-plan-loop picks it up
@@ -139,10 +139,10 @@ rad-plan-loop picks it up
 Plan COB created, linked to issue
         │
         ▼
-Label swapped: 'toplan' → 'planned'
+Label swapped: 'TODO' → 'ready'
         │
         ▼
-Human re-adds 'toplan'?  →  New plan created (supports multiple plans per issue)
+Human re-adds 'TODO'?  →  New plan created (supports multiple plans per issue)
 ```
 
 ### Plan Quality
@@ -204,9 +204,9 @@ rad-plan status <plan-id> approved
 
 ## Configuration
 
-- **Plan label**: `--plan-label <label>` (default: `toplan`)
-- **Planned label**: `--planned-label <label>` (default: `planned`)
-- **Exclude label**: `--exclude-label <label>` on issue loop (default: `toplan`)
+- **Plan label**: `--plan-label <label>` (default: `TODO`)
+- **Planned label**: `--planned-label <label>` (default: `ready`)
+- **Exclude label**: `--exclude-label <label>` on issue loop (default: `TODO`)
 - **Max plans**: `--max-plans <n>` to throttle plan creation
 - **Cooldown**: Wait period between iterations (default: 30s)
 
@@ -221,8 +221,8 @@ rad-plan status <plan-id> approved
 ## Boundaries
 
 - **Do NOT** close issues directly (patches should resolve them)
-- **Do NOT** work on `toplan` issues in the direct loop (they belong to plan-loop)
+- **Do NOT** work on `TODO` issues in the direct loop (they belong to plan-loop)
 - **Do NOT** approve plans automatically unless `--auto-approve` is set
-- **DO** create one plan per `toplan` issue (re-adding label creates a new plan)
+- **DO** create one plan per `TODO` issue (re-adding label creates a new plan)
 - **DO** link plans to issues for traceability
 - **DO** swap labels to signal processing state

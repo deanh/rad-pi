@@ -1,5 +1,5 @@
 /**
- * rad-plan-loop: Watches for issues with a configurable label (default: "toplan"),
+ * rad-plan-loop: Watches for issues with a configurable label (default: "TODO"),
  * creates Plan COBs from them via LLM analysis, and optionally auto-approves.
  *
  * This is Loop 1 of the two-loop architecture:
@@ -49,8 +49,8 @@ interface PlanSpec {
 // --- Constants ---
 
 const DEFAULT_COOLDOWN_MS = 30000;
-const DEFAULT_PLAN_LABEL = "toplan";
-const DEFAULT_PLANNED_LABEL = "planned";
+const DEFAULT_PLAN_LABEL = "TODO";
+const DEFAULT_PLANNED_LABEL = "ready";
 
 const PLANNING_PROMPT = `You are a senior software engineer creating an implementation plan from a Radicle issue. Given the issue details and codebase context, produce a structured plan broken into discrete tasks.
 
@@ -356,7 +356,7 @@ export default function (pi: ExtensionAPI) {
           const hasLinked = await issueHasLinkedPlan(pi, issue.id);
           if (hasLinked) {
             ctx.ui.notify(`  Skipping ${shortId(issue.id)}: already has a linked plan`, "info");
-            // Clean up stale label if issue already has a plan but still has toplan
+            // Clean up stale label if issue already has a plan but still has TODO label
             if (issue.labels.includes(state.planLabel)) {
               ctx.ui.notify(`  Cleaning stale '${state.planLabel}' label from ${shortId(issue.id)}`, "info");
               await swapLabels(pi, issue.id, state.plannedLabel, state.planLabel);
@@ -397,7 +397,7 @@ export default function (pi: ExtensionAPI) {
           const planStatus = autoApprove ? "approved" : "draft";
           await pi.exec("rad-plan", ["status", planId, planStatus], { timeout: 10000 });
 
-          // Swap labels: add planned, then remove toplan with delay + verification
+          // Swap labels: add ready, then remove TODO with delay + verification
           const { removeOk } = await swapLabels(pi, issue.id, state.plannedLabel, state.planLabel);
           if (!removeOk) {
             ctx.ui.notify(
@@ -449,16 +449,16 @@ export default function (pi: ExtensionAPI) {
 
       await syncNetwork(pi);
 
-      const toplan = await listOpenIssues(pi, [state.planLabel]);
-      const planned = await listOpenIssues(pi, [state.plannedLabel]);
+      const todoIssues = await listOpenIssues(pi, [state.planLabel]);
+      const readyIssues = await listOpenIssues(pi, [state.plannedLabel]);
 
-      ctx.ui.notify(`Issues with '${state.planLabel}': ${toplan.length}`, "info");
-      for (const i of toplan) {
+      ctx.ui.notify(`Issues with '${state.planLabel}': ${todoIssues.length}`, "info");
+      for (const i of todoIssues) {
         ctx.ui.notify(`  ○ ${shortId(i.id)}: ${i.title}`, "info");
       }
 
-      ctx.ui.notify(`Issues with '${state.plannedLabel}': ${planned.length}`, "info");
-      for (const i of planned) {
+      ctx.ui.notify(`Issues with '${state.plannedLabel}': ${readyIssues.length}`, "info");
+      for (const i of readyIssues) {
         ctx.ui.notify(`  ✓ ${shortId(i.id)}: ${i.title}`, "info");
       }
 

@@ -203,7 +203,7 @@ export default function (pi: ExtensionAPI) {
 
       // Exclude label: issues with this label are handled by rad-plan-loop
       const excludeIdx = argList.indexOf("--exclude-label");
-      const excludeLabel = excludeIdx >= 0 ? argList[excludeIdx + 1] : "toplan";
+      const excludeLabel = excludeIdx >= 0 ? argList[excludeIdx + 1] : "TODO";
 
       if (status) {
         ctx.ui.notify(
