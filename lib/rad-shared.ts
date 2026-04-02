@@ -206,7 +206,7 @@ export async function addLabel(pi: ExtensionAPI, issueId: string, label: string)
  * Remove a label from an issue.
  */
 export async function removeLabel(pi: ExtensionAPI, issueId: string, label: string): Promise<boolean> {
-  const result = await pi.exec("rad", ["issue", "label", issueId, "--remove", label], { timeout: 5000 });
+  const result = await pi.exec("rad", ["issue", "label", issueId, "--delete", label], { timeout: 5000 });
   return result.code === 0;
 }
 

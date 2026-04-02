@@ -402,7 +402,7 @@ export default function (pi: ExtensionAPI) {
           if (!removeOk) {
             ctx.ui.notify(
               `Label swap: could not remove '${state.planLabel}' from ${shortId(issue.id)}. ` +
-              `Issue has both labels — fix manually: rad issue label ${shortId(issue.id)} --remove ${state.planLabel}`,
+              `Issue has both labels — fix manually: rad issue label ${shortId(issue.id)} --delete ${state.planLabel}`,
               "error",
             );
           }
