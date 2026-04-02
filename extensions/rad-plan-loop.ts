@@ -102,14 +102,15 @@ async function createPlanFromIssue(
   const issueFullText = issueShowResult.code === 0 ? issueShowResult.stdout.trim() : issue.description;
 
   // 2. Call LLM to generate plan
-  let model = ctx.modelRegistry.find("anthropic", "claude-sonnet-4-5-20250514")
-    ?? ctx.modelRegistry.find("anthropic", "claude-sonnet-4-5");
+  // Prefer session model first (handles custom API endpoints/configurations)
+  let model = ctx.model;
 
-  // Fall back to session model
+  // Fall back to specific Claude models if no session model
   if (!model) {
-    model = ctx.model;
+    model = ctx.modelRegistry.find("anthropic", "claude-sonnet-4-5-20250514")
+      ?? ctx.modelRegistry.find("anthropic", "claude-sonnet-4-5");
     if (model) {
-      ctx.ui.notify(`rad-plan-loop: using session model (${model.id}) for planning`, "info");
+      ctx.ui.notify(`rad-plan-loop: using ${model.id} for planning`, "info");
     }
   }
 
