@@ -35,6 +35,7 @@ pi install https://github.com/deanh/rad-pi
 - Radicle node running for network operations (`rad node start`)
 - Optional: [`rad-plan`](#install-rad-plan) CLI for Plan COB support
 - Optional: [`rad-context`](#install-rad-context) CLI for Context COB support
+- Optional: [`rad-experiment`](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:z3trgPnc9KqoFHpZj8KD9s7iX7nwX) CLI for Experiment COB support
 
 All COB features gracefully degrade when their CLIs are not installed.
 
@@ -42,13 +43,14 @@ All COB features gracefully degrade when their CLIs are not installed.
 
 ### Skills
 
-Four knowledge skills following the [Agent Skills](https://agentskills.io) standard:
+Five knowledge skills following the [Agent Skills](https://agentskills.io) standard:
 
 | Skill | Description |
 |-------|-------------|
 | **radicle** | Core `rad` CLI operations — init, clone, patch, issue, sync, node management |
 | **rad-plans** | Plan COBs (`me.hdh.plan`), `rad-plan` CLI, and interactive plan management |
 | **rad-contexts** | Context COBs (`me.hdh.context`) and `rad-context` CLI |
+| **rad-experiment** | Experiment COBs (`cc.experiment`), `rad-experiment` CLI, and autoresearch publishing |
 | **rad-issue-loop** | Autonomous issue processing loop — check issues, work them, create contexts, submit patches |
 
 ### Extensions
@@ -56,7 +58,8 @@ Four knowledge skills following the [Agent Skills](https://agentskills.io) stand
 | Extension | Description |
 |-----------|-------------|
 | **rad-context** | Detects Radicle repos at session start, auto-creates Context COBs on compaction and shutdown, provides `/rad-context` command |
-| **rad-orchestrator** | Multi-agent worktree orchestration via `/rad-orchestrate <plan-id>` |
+| **rad-plan-loop** | Watches for labeled issues and creates Plan COBs via `/rad-plan-loop` |
+| **rad-orchestrator** | Multi-agent worktree orchestration via `/rad-orchestrate` and `/rad-orchestrate-loop` |
 | **rad-issue-loop** | Autonomous issue processing loop via `/rad-issue-loop` |
 
 ### Agent
@@ -94,6 +97,36 @@ Features:
 - Retry failed workers interactively
 - Context feedback from completed workers informs subsequent batches
 - File conflict detection prevents parallel workers from touching the same files
+
+### `/rad-orchestrate-loop [options]`
+
+Poll for approved plans and orchestrate their execution automatically:
+
+```
+/rad-orchestrate-loop            # Poll every 30s for approved plans
+/rad-orchestrate-loop --oneshot  # Execute one approved plan then stop
+/rad-orchestrate-loop --cooldown 60000  # Custom poll interval (ms)
+/rad-orchestrate-loop --status   # Show loop status
+/rad-orchestrate-loop --stop     # Stop a running loop
+```
+
+### `/rad-plan-loop [options]`
+
+Watch for labeled issues and create Plan COBs:
+
+```
+/rad-plan-loop                   # Watch for issues labeled "TODO"
+/rad-plan-loop --oneshot         # Process one issue then stop
+/rad-plan-loop --auto-approve    # Skip manual plan review
+/rad-plan-loop --plan-label X    # Custom label to watch (default: TODO)
+/rad-plan-loop --planned-label X # Label applied after planning (default: ready)
+/rad-plan-loop --status          # Show loop status
+/rad-plan-loop --stop            # Stop a running loop
+```
+
+### `/rad-plan-check`
+
+Check for issues ready for planning and list approved plans.
 
 ### Issue Loop Commands
 
