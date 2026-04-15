@@ -13,6 +13,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `/rad-context` autocomplete now correctly displays the `auto [on|off]` option in the command description
 
+## [1.4.1] - 2026-04-14
+
+### Added
+
+- `rad-experiment-hook` extension — bridges pi-autoresearch experiments to Radicle Experiment COBs
+- `/rad-context auto [on|off]` command to toggle automatic session capture
+
+### Fixed
+
+- `rad-context` auto-capture now disabled by default
+- Trimmed skill descriptions and improved detection/config documentation
+
+## [1.4.0] - 2026-04-10
+
+### Added
+
+- `rad-experiment` skill — support for `cc.experiment` COB type and autoresearch publishing
+
+### Fixed
+
+- `ToolSpec` cleanup and improved `detectTools` fallback logic
+- Consistent guards in `rad-issue-loop`
+
+## [1.3.1] - 2026-04-01
+
+### Added
+
+- Extensible `ToolRegistry` replacing the fixed `RadicleCapabilities`
+
+### Fixed
+
+- Updated to pi SDK 0.64.0 using `getApiKeyAndHeaders` API
+- Fixed label removal in `rad-issue-loop` (using `--delete` instead of `--remove`)
+- Improved label swap reliability and DONE comment verification
+
+## [1.2.1] - 2026-03-25
+
+### Added
+
+- Biased `rad-plan-loop` toward single-task plans for simpler work-flows
+
+### Fixed
+
+- Improved reliability of label swap with retry and cleanup logic
+- Resolved various TypeScript errors across extensions
+
 ## [1.1.0] - 2026-03-19
 
 ### Added
