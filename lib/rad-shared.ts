@@ -22,11 +22,87 @@ export interface Issue {
   };
 }
 
+/**
+ * @deprecated Use ToolRegistry + hasTool() instead. Kept for backward compatibility.
+ */
 export interface RadicleCapabilities {
   isRadicleRepo: boolean;
   radPlanInstalled: boolean;
   radContextInstalled: boolean;
   repoId: string | null;
+}
+
+// --- Tool Registry ---
+
+/**
+ * Capability level for a COB tool.
+ *
+ * - "none"  — tool not available (not a radicle repo, or rad not installed)
+ * - "read"  — can read COBs via `rad cob` (always true when isRadicleRepo)
+ * - "full"  — custom CLI installed (e.g. rad-plan, rad-context)
+ */
+export type ToolLevel = "none" | "read" | "full";
+
+/**
+ * A tool specification passed to detectTools().
+ */
+export interface ToolSpec {
+  /** Binary name on $PATH (e.g. "rad-plan") */
+  name: string;
+}
+
+/**
+ * Resolved capability state for the current session.
+ * Replaces the fixed RadicleCapabilities struct with an extensible registry.
+ */
+export interface ToolRegistry {
+  isRadicleRepo: boolean;
+  repoId: string | null;
+  tools: Map<string, ToolLevel>;
+}
+
+/**
+ * Check whether a tool is available at the given capability level.
+ *
+ * Usage:
+ *   hasTool(reg, "rad-plan")           // full only (default)
+ *   hasTool(reg, "rad-plan", "read")  // read or full
+ */
+export function hasTool(reg: ToolRegistry, name: string, minLevel: ToolLevel = "full"): boolean {
+  const level = reg.tools.get(name) ?? "none";
+  if (minLevel === "none") return true;
+  if (minLevel === "read") return level === "read" || level === "full";
+  return level === "full";
+}
+
+/**
+ * Guard helper for command handlers. Returns true if all required tools are
+ * available; otherwise notifies the user and returns false.
+ *
+ * @param installHints - optional map of tool name → install instructions
+ *   (shown when the tool is missing)
+ */
+export function requireTools(
+  reg: ToolRegistry,
+  ctx: { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => void } },
+  required: string[],
+  installHints?: Record<string, string>,
+): boolean {
+  if (!reg.isRadicleRepo) {
+    ctx.ui.notify("Not a Radicle repository", "error");
+    return false;
+  }
+  for (const tool of required) {
+    if (!hasTool(reg, tool)) {
+      const hint = installHints?.[tool];
+      ctx.ui.notify(
+        `${tool} not installed.` + (hint ? ` ${hint}` : ` Install it and ensure it's on $PATH.`),
+        "error",
+      );
+      return false;
+    }
+  }
+  return true;
 }
 
 // --- Helpers ---
@@ -49,29 +125,63 @@ export async function announceNetwork(pi: ExtensionAPI): Promise<boolean> {
 
 // --- Capability Detection ---
 
-export async function detectCapabilities(pi: ExtensionAPI): Promise<RadicleCapabilities> {
-  const caps: RadicleCapabilities = {
+/**
+ * Detect Radicle repo status and tool availability.
+ *
+ * Each tool spec names a CLI binary. If the binary is on $PATH, the tool
+ * gets level "full"; otherwise "none".
+ *
+ * All `which` checks run in parallel.
+ */
+export async function detectTools(
+  pi: ExtensionAPI,
+  toolSpecs: ToolSpec[],
+): Promise<ToolRegistry> {
+  const reg: ToolRegistry = {
     isRadicleRepo: false,
-    radPlanInstalled: false,
-    radContextInstalled: false,
     repoId: null,
+    tools: new Map(),
   };
 
   const radResult = await pi.exec("rad", ["."], { timeout: 5000 });
-  if (radResult.code !== 0) return caps;
+  if (radResult.code !== 0) {
+    // Not a radicle repo — all tools are "none"
+    for (const spec of toolSpecs) reg.tools.set(spec.name, "none");
+    return reg;
+  }
 
-  caps.isRadicleRepo = true;
-  caps.repoId = radResult.stdout.trim();
+  reg.isRadicleRepo = true;
+  reg.repoId = radResult.stdout.trim();
 
-  const [planResult, ctxResult] = await Promise.all([
-    pi.exec("which", ["rad-plan"], { timeout: 3000 }),
-    pi.exec("which", ["rad-context"], { timeout: 3000 }),
+  const checks = await Promise.all(
+    toolSpecs.map(async (spec) => {
+      const result = await pi.exec("which", [spec.name], { timeout: 3000 });
+      return [spec.name, result.code === 0 ? "full" as const : "none" as const] as const;
+    }),
+  );
+
+  for (const [name, level] of checks) {
+    reg.tools.set(name, level);
+  }
+
+  return reg;
+}
+
+/**
+ * @deprecated Use detectTools() instead. Kept for backward compatibility.
+ */
+export async function detectCapabilities(pi: ExtensionAPI): Promise<RadicleCapabilities> {
+  const reg = await detectTools(pi, [
+    { name: "rad-plan" },
+    { name: "rad-context" },
   ]);
 
-  caps.radPlanInstalled = planResult.code === 0;
-  caps.radContextInstalled = ctxResult.code === 0;
-
-  return caps;
+  return {
+    isRadicleRepo: reg.isRadicleRepo,
+    radPlanInstalled: hasTool(reg, "rad-plan"),
+    radContextInstalled: hasTool(reg, "rad-context"),
+    repoId: reg.repoId,
+  };
 }
 
 // --- Issue Operations ---

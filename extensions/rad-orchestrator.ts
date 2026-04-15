@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
-import { syncNetwork, announceNetwork, shortId as sharedShortId } from "../lib/rad-shared.ts";
+import { syncNetwork, announceNetwork, shortId as sharedShortId, detectTools, hasTool, requireTools, type ToolRegistry } from "../lib/rad-shared.ts";
 
 // --- Constants ---
 
@@ -95,10 +95,7 @@ interface AgentConfig {
 // --- State ---
 
 interface OrchestratorState {
-  isRadicleRepo: boolean;
-  radPlanInstalled: boolean;
-  radContextInstalled: boolean;
-  repoId: string | null;
+  reg: ToolRegistry;
 }
 
 // --- Helpers ---
@@ -799,26 +796,21 @@ async function completePlan(
 
 export default function (pi: ExtensionAPI) {
   const state: OrchestratorState = {
-    isRadicleRepo: false,
-    radPlanInstalled: false,
-    radContextInstalled: false,
-    repoId: null,
+    reg: {
+      isRadicleRepo: false,
+      repoId: null,
+      tools: new Map(),
+    },
   };
 
   // Detect capabilities at session start
   pi.on("session_start", async (_event, ctx) => {
-    const radResult = await pi.exec("rad", ["."], { timeout: 5000 });
-    if (radResult.code !== 0) return;
-    state.isRadicleRepo = true;
-    state.repoId = radResult.stdout.trim();
+    state.reg = await detectTools(pi, [
+      { name: "rad-plan" },
+      { name: "rad-context" },
+    ]);
 
-    const planResult = await pi.exec("which", ["rad-plan"], { timeout: 3000 });
-    state.radPlanInstalled = planResult.code === 0;
-
-    const ctxResult = await pi.exec("which", ["rad-context"], { timeout: 3000 });
-    state.radContextInstalled = ctxResult.code === 0;
-
-    if (state.radPlanInstalled) {
+    if (hasTool(state.reg, "rad-plan")) {
       ctx.ui.setStatus("rad-orchestrator", "rad-plan ✓");
     }
   });
@@ -827,14 +819,9 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-orchestrate", {
     description: "Orchestrate multi-agent execution of a Plan COB across worktrees",
     handler: async (args, ctx) => {
-      if (!state.isRadicleRepo) {
-        ctx.ui.notify("Not a Radicle repository", "error");
-        return;
-      }
-      if (!state.radPlanInstalled) {
-        ctx.ui.notify("rad-plan not installed. Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v", "error");
-        return;
-      }
+      if (!requireTools(state.reg, ctx, ["rad-plan"], {
+        "rad-plan": "Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v",
+      })) return;
 
       const planId = args?.trim();
       if (!planId) {
@@ -1213,7 +1200,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         // Evaluate context feedback
-        if (state.radContextInstalled && succeeded.length > 0) {
+        if (hasTool(state.reg, "rad-context") && succeeded.length > 0) {
           const freshState = await analyzePlan(pi, planId);
           if (freshState) {
             currentPlanState = freshState;
@@ -1255,14 +1242,9 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-orchestrate-loop", {
     description: "Poll for approved plans and orchestrate their execution",
     handler: async (args, ctx) => {
-      if (!state.isRadicleRepo) {
-        ctx.ui.notify("Not a Radicle repository", "error");
-        return;
-      }
-      if (!state.radPlanInstalled) {
-        ctx.ui.notify("rad-plan not installed. Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v", "error");
-        return;
-      }
+      if (!requireTools(state.reg, ctx, ["rad-plan"], {
+        "rad-plan": "Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v",
+      })) return;
 
       const argList = args?.trim().split(/\s+/) ?? [];
       const statusFlag = argList.includes("--status");

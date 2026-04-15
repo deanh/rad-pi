@@ -4,11 +4,12 @@ import { complete } from "@mariozechner/pi-ai";
 import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "../lib/rad-context-utils.ts";
 import {
   type Issue,
-  type RadicleCapabilities,
+  type ToolRegistry,
   shortId,
   syncNetwork,
   announceNetwork,
-  detectCapabilities,
+  detectTools,
+  hasTool,
   listOpenIssues,
   returnToMain,
   createFeatureBranch,
@@ -20,7 +21,7 @@ import {
 // --- Types ---
 
 interface LoopState {
-  caps: RadicleCapabilities;
+  reg: ToolRegistry;
   processedIssues: Set<string>;
   sessionStartTime: number;
   isRunning: boolean;
@@ -160,11 +161,10 @@ function hasOpenPatchReference(issue: Issue): boolean {
 
 export default function (pi: ExtensionAPI) {
   const state: LoopState = {
-    caps: {
+    reg: {
       isRadicleRepo: false,
-      radPlanInstalled: false,
-      radContextInstalled: false,
       repoId: null,
+      tools: new Map(),
     },
     processedIssues: new Set(),
     sessionStartTime: Date.now(),
@@ -175,9 +175,11 @@ export default function (pi: ExtensionAPI) {
   // Detect Radicle repo and capabilities
   pi.on("session_start", async (_event, ctx) => {
     state.sessionStartTime = Date.now();
-    state.caps = await detectCapabilities(pi);
+    state.reg = await detectTools(pi, [
+      { name: "rad-context" },
+    ]);
 
-    if (state.caps.isRadicleRepo) {
+    if (state.reg.isRadicleRepo) {
       ctx.ui.setStatus("rad-issue-loop", "ready");
     }
   });
@@ -186,7 +188,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-issue-loop", {
     description: "Run autonomous issue processing loop (direct implementation, no plan creation)",
     handler: async (args, ctx) => {
-      if (!state.caps.isRadicleRepo) {
+      if (!state.reg.isRadicleRepo) {
         ctx.ui.notify("Not a Radicle repository", "error");
         return;
       }
@@ -333,7 +335,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-issue-work", {
     description: "Complete current issue work: commit, create context, push patch",
     handler: async (args, ctx) => {
-      if (!state.caps.isRadicleRepo) {
+      if (!state.reg.isRadicleRepo) {
         ctx.ui.notify("Not a Radicle repository", "error");
         return;
       }
@@ -371,7 +373,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       // 2. Context COB
-      if (state.caps.radContextInstalled && commitSha) {
+      if (hasTool(state.reg, "rad-context") && commitSha) {
         ctx.ui.notify("Creating context COB...", "info");
 
         const entries = ctx.sessionManager.getEntries();
@@ -418,7 +420,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-issue-skip", {
     description: "Skip current issue work and return to main branch",
     handler: async (_args, ctx) => {
-      if (!state.caps.isRadicleRepo) {
+      if (!state.reg.isRadicleRepo) {
         ctx.ui.notify("Not a Radicle repository", "error");
         return;
       }
@@ -432,7 +434,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-issue-check", {
     description: "Check for new issues, patches, and contexts",
     handler: async (_args, ctx) => {
-      if (!state.caps.isRadicleRepo) {
+      if (!state.reg.isRadicleRepo) {
         ctx.ui.notify("Not a Radicle repository", "error");
         return;
       }
@@ -455,7 +457,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      if (state.caps.radContextInstalled) {
+      if (hasTool(state.reg, "rad-context")) {
         const ctxResult = await pi.exec("rad-context", ["list"], { timeout: 10000 });
         if (ctxResult.code === 0) {
           const contexts = ctxResult.stdout.trim().split("\n").filter(l => l.trim());
