@@ -1,7 +1,9 @@
 ---
 name: rad-experiment
-description: Knowledge about rad-experiment COBs (cc.experiment) — a Collaborative Object type for publishing, reproducing, and curating optimization experiments in Radicle repositories. Use when working with rad-experiment, experiment COBs, publishing autoresearch results, or benchmark-based optimization workflows.
+description: Knowledge about rad-experiment CLI and cc.experiment COBs — publishing, reproducing, and curating optimization experiments in Radicle repos. Use when working with rad-experiment, experiment COBs, publish-tape, autoresearch publishing, or cc.experiment.
 ---
+
+TRIGGER when: user mentions rad-experiment, experiment COBs, publish-tape, publish-evo, autoresearch publishing, cc.experiment, or benchmark optimization workflows.
 
 # Radicle Experiment COB Skill
 
@@ -63,7 +65,7 @@ Each metric in the experiment:
 
 ### rad-experiment publish
 
-Publish a new experiment with explicit measurements:
+Publish a new experiment with explicit measurements (publishes immediately — no confirmation prompt):
 
 ```bash
 rad-experiment publish \
@@ -271,7 +273,7 @@ rad sync --announce
 
 ## Configuration: autoresearch.yaml
 
-The benchmark configuration file (formerly `optimize.yaml`) at the repository root:
+The benchmark configuration file at the repository root (also accepted as `optimize.yaml` for backward compatibility):
 
 ```yaml
 bench_cmd: ./autoresearch.sh
@@ -307,4 +309,4 @@ rad-experiment --version
 
 ### Detection
 
-The ToolRegistry in rad-pi detects `rad-experiment` via `which rad-experiment`. All experiment features gracefully degrade when the tool is not installed.
+Ensure `rad-experiment` is on `$PATH`. Extensions that need it can register `{ name: "rad-experiment" }` with `detectTools()` from `rad-shared.ts`.
