@@ -71,7 +71,7 @@ Five knowledge skills following the [Agent Skills](https://agentskills.io) stand
 
 ## Commands
 
-### `/rad-context [list | show <id> | create]`
+### `/rad-context [list | show <id> | create | auto [on|off]]`
 
 Manage Context COBs:
 

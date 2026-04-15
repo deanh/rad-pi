@@ -234,6 +234,7 @@ See `.pi/agents/rad-worker.md` for the full worker protocol and `.pi/extensions/
 - `/rad-context create` — Primary creation mechanism (Claude reflects on session)
 - `/rad-context list` — View existing contexts
 - `/rad-context show <id>` — View context details
+- `/rad-context auto [on|off]` — Toggle auto-capture of session observations
 - `/rad-context link <id>` — Add links to issues/patches/plans/commits
 - `/rad-import` surfaces linked contexts during planning
 - `/rad-sync` offers context creation when closing issues

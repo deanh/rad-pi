@@ -298,7 +298,7 @@ export default function (pi: ExtensionAPI) {
 
   // Manual /rad-context command
   pi.registerCommand("rad-context", {
-    description: "Manage Context COBs (create, list, show)",
+    description: "Manage Context COBs (list, show, create, auto [on|off])",
     handler: async (args, ctx) => {
       if (!isActive()) {
         ctx.ui.notify("Not a Radicle repo or rad-context not installed", "warning");

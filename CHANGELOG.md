@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Extracted from [rad-skill](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:zvBj4kByGeQSrSy2c4H7fyK42cS8) which contains the original development history.
 
-## [Unreleased]
+## [1.4.4] - 2026-04-15
+
+### Fixed
+
+- `/rad-context` autocomplete now correctly displays the `auto [on|off]` option in the command description
 
 ## [1.1.0] - 2026-03-19
 
