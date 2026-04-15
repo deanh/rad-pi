@@ -61,6 +61,7 @@ Five knowledge skills following the [Agent Skills](https://agentskills.io) stand
 | **rad-plan-loop** | Watches for labeled issues and creates Plan COBs via `/rad-plan-loop` |
 | **rad-orchestrator** | Multi-agent worktree orchestration via `/rad-orchestrate` and `/rad-orchestrate-loop` |
 | **rad-issue-loop** | Autonomous issue processing loop via `/rad-issue-loop` |
+| **rad-experiment-hook** | Auto-publishes pi-autoresearch experiments as rad-experiment COBs |
 
 ### Agent
 
@@ -205,6 +206,39 @@ cd radicle-plan-cob
 cargo install --path .
 rad-plan --version
 ```
+
+## Experiment Publishing (pi-autoresearch bridge)
+
+The `rad-experiment-hook` extension automatically bridges [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) experiment loops with `rad-experiment` COBs. When both packages are installed and you're running an autoresearch loop in a Radicle repo, it:
+
+1. **On every kept experiment**: pushes the commit to Radicle storage and runs `publish-tape` to create an Experiment COB
+2. **On discard/crash/checks_failed**: pins the orphan commit to Radicle storage so it's available for inspection
+3. **On agent_end** (session stop): runs `publish-tape` as a safety net and announces to the network
+
+This replicates the `auto-publish.sh` Stop-hook behavior from the Claude Code community-computer plugin — but using pi's `tool_result` event system instead of Claude Code hooks.
+
+### Requirements
+
+- `rad-experiment` CLI on `$PATH` (see [rad-experiment SKILL.md](skills/rad-experiment/SKILL.md) for installation)
+- A Radicle repository (`rad init` has been run)
+- `pi-autoresearch` package installed
+
+All features gracefully degrade when `rad-experiment` is not installed or the repo is not a Radicle repo (silent no-op).
+
+### What gets published
+
+- Only experiments with `status: keep` become COBs (via `rad-experiment publish-tape`)
+- Discards, crashes, and `checks_failed` results are pinned to rad storage but not published as COBs
+- `publish-tape` is idempotent — only new `(base, head)` pairs are published
+- Session branch is pushed to `refs/heads/experiments/<slug>` for peer access
+
+### Comparison with Claude Code hooks
+
+| Claude Code hook | pi equivalent |
+|---|---|
+| `auto-publish.sh` (Stop) | `tool_result` event on `log_experiment` + `agent_end` safety net |
+| `guard-edits.sh` (PreToolUse) | Not needed — pi-autoresearch already protects session files during revert |
+| `guard-worktree-cleanup.sh` (Stop) | Not needed — pi-autoresearch uses in-place commits/reverts, not worktrees |
 
 ## Provenance
 
