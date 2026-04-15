@@ -7,6 +7,7 @@ import { detectTools, hasTool, type ToolRegistry } from "../lib/rad-shared.ts";
 interface RadContextState {
   reg: ToolRegistry;
   contextCreatedThisSession: boolean;
+  autoCaptureEnabled: boolean;
   sessionStartTime: number;
   // Stashed between session_before_compact and session_compact
   stashedConversation: string | null;
@@ -50,6 +51,7 @@ export default function (pi: ExtensionAPI) {
       tools: new Map(),
     },
     contextCreatedThisSession: false,
+    autoCaptureEnabled: false,
     sessionStartTime: Date.now(),
     stashedConversation: null,
     stashedModifiedFiles: [],
@@ -258,6 +260,7 @@ export default function (pi: ExtensionAPI) {
   // Mid-session: after compaction, extract context from the compacted portion
   pi.on("session_compact", async (_event, ctx) => {
     if (!isActive()) return;
+    if (!state.autoCaptureEnabled) return;
     if (!state.stashedConversation) return;
 
     const conversation = state.stashedConversation;
@@ -273,6 +276,7 @@ export default function (pi: ExtensionAPI) {
   // End of session: extract context from the full conversation
   pi.on("session_shutdown", async (_event, ctx) => {
     if (!isActive()) return;
+    if (!state.autoCaptureEnabled) return;
     if (state.contextCreatedThisSession) return;
 
     // Build the current conversation from session entries
@@ -323,8 +327,18 @@ export default function (pi: ExtensionAPI) {
           "Reflect on this session and create a Context COB. Use the rad-contexts skill for the workflow: gather git data, reflect on approach/constraints/friction/learnings/open items, then pipe JSON to `rad-context create --json`. Present the draft for my review before creating.",
           { deliverAs: "followUp" },
         );
+      } else if (subcommand === "auto") {
+        if (rest === "on") {
+          state.autoCaptureEnabled = true;
+          ctx.ui.notify("Auto-context capture enabled for this session", "info");
+        } else if (rest === "off") {
+          state.autoCaptureEnabled = false;
+          ctx.ui.notify("Auto-context capture disabled for this session", "info");
+        } else {
+          ctx.ui.notify("Usage: /rad-context auto [on|off]", "info");
+        }
       } else {
-        ctx.ui.notify("Usage: /rad-context [list | show <id> | create]", "info");
+        ctx.ui.notify("Usage: /rad-context [list | show <id> | create | auto [on|off]]", "info");
       }
     },
   });
