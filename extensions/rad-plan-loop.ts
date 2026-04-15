@@ -253,7 +253,7 @@ export default function (pi: ExtensionAPI) {
   // Detect capabilities
   pi.on("session_start", async (_event, ctx) => {
     state.reg = await detectTools(pi, [
-      { name: "rad-plan", cobType: "me.hdh.plan" },
+      { name: "rad-plan" },
     ]);
 
     if (hasTool(state.reg, "rad-plan")) {

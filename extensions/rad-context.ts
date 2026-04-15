@@ -217,7 +217,7 @@ export default function (pi: ExtensionAPI) {
     state.sessionStartTime = Date.now();
 
     state.reg = await detectTools(pi, [
-      { name: "rad-context", cobType: "me.hdh.context" },
+      { name: "rad-context" },
     ]);
 
     if (!state.reg.isRadicleRepo) return;

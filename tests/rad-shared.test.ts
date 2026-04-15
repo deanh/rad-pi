@@ -60,8 +60,8 @@ describe("requireTools", () => {
       repoId: null,
       tools: new Map(),
     };
-    const notifications: Array<{ msg: string; level: string }> = [];
-    const ctx = { ui: { notify: (msg: string, level: string) => { notifications.push({ msg, level }); } } };
+    const notifications: Array<{ msg: string; level?: string }> = [];
+    const ctx = { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => { notifications.push({ msg, level }); } } };
 
     const result = requireTools(reg, ctx, ["rad-plan"]);
     assert.equal(result, false);
@@ -74,10 +74,10 @@ describe("requireTools", () => {
     const reg: ToolRegistry = {
       isRadicleRepo: true,
       repoId: "rad:z123",
-      tools: new Map([["rad-plan", "read"]]),
+      tools: new Map([["rad-plan", "none"]]),
     };
-    const notifications: Array<{ msg: string; level: string }> = [];
-    const ctx = { ui: { notify: (msg: string, level: string) => { notifications.push({ msg, level }); } } };
+    const notifications: Array<{ msg: string; level?: string }> = [];
+    const ctx = { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => { notifications.push({ msg, level }); } } };
 
     const result = requireTools(reg, ctx, ["rad-plan"], {
       "rad-plan": "Install from: rad clone rad:z123",
@@ -94,8 +94,8 @@ describe("requireTools", () => {
       repoId: "rad:z123",
       tools: new Map([["rad-plan", "full"], ["rad-context", "full"]]),
     };
-    const notifications: Array<{ msg: string; level: string }> = [];
-    const ctx = { ui: { notify: (msg: string, level: string) => { notifications.push({ msg, level }); } } };
+    const notifications: Array<{ msg: string; level?: string }> = [];
+    const ctx = { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => { notifications.push({ msg, level }); } } };
 
     const result = requireTools(reg, ctx, ["rad-plan", "rad-context"]);
     assert.equal(result, true);
@@ -108,8 +108,8 @@ describe("requireTools", () => {
       repoId: "rad:z123",
       tools: new Map(),
     };
-    const notifications: Array<{ msg: string; level: string }> = [];
-    const ctx = { ui: { notify: (msg: string, level: string) => { notifications.push({ msg, level }); } } };
+    const notifications: Array<{ msg: string; level?: string }> = [];
+    const ctx = { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => { notifications.push({ msg, level }); } } };
 
     const result = requireTools(reg, ctx, []);
     assert.equal(result, true);
@@ -122,8 +122,8 @@ describe("requireTools", () => {
       repoId: "rad:z123",
       tools: new Map(),
     };
-    const notifications: Array<{ msg: string; level: string }> = [];
-    const ctx = { ui: { notify: (msg: string, level: string) => { notifications.push({ msg, level }); } } };
+    const notifications: Array<{ msg: string; level?: string }> = [];
+    const ctx = { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => { notifications.push({ msg, level }); } } };
 
     const result = requireTools(reg, ctx, ["rad-plan", "rad-context"]);
     assert.equal(result, false);

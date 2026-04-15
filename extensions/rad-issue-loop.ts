@@ -10,7 +10,6 @@ import {
   announceNetwork,
   detectTools,
   hasTool,
-  requireTools,
   listOpenIssues,
   returnToMain,
   createFeatureBranch,
@@ -177,7 +176,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     state.sessionStartTime = Date.now();
     state.reg = await detectTools(pi, [
-      { name: "rad-context", cobType: "me.hdh.context" },
+      { name: "rad-context" },
     ]);
 
     if (state.reg.isRadicleRepo) {
@@ -189,7 +188,10 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-issue-loop", {
     description: "Run autonomous issue processing loop (direct implementation, no plan creation)",
     handler: async (args, ctx) => {
-      if (!requireTools(state.reg, ctx, [])) return;
+      if (!state.reg.isRadicleRepo) {
+        ctx.ui.notify("Not a Radicle repository", "error");
+        return;
+      }
 
       const argList = args?.trim().split(/\s+/) ?? [];
       const auto = argList.includes("--auto");

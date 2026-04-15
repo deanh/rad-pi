@@ -45,13 +45,10 @@ export type ToolLevel = "none" | "read" | "full";
 
 /**
  * A tool specification passed to detectTools().
- * Maps a CLI binary name to its COB typename for read-level fallback via `rad cob`.
  */
 export interface ToolSpec {
   /** Binary name on $PATH (e.g. "rad-plan") */
   name: string;
-  /** COB typename for read-level fallback (e.g. "me.hdh.plan") */
-  cobType: string;
 }
 
 /**
@@ -87,7 +84,7 @@ export function hasTool(reg: ToolRegistry, name: string, minLevel: ToolLevel = "
  */
 export function requireTools(
   reg: ToolRegistry,
-  ctx: { ui: { notify: (msg: string, level: string) => void } },
+  ctx: { ui: { notify: (msg: string, level?: "info" | "warning" | "error") => void } },
   required: string[],
   installHints?: Record<string, string>,
 ): boolean {
@@ -131,10 +128,8 @@ export async function announceNetwork(pi: ExtensionAPI): Promise<boolean> {
 /**
  * Detect Radicle repo status and tool availability.
  *
- * Each tool spec maps a CLI binary to a COB typename. If the binary is on
- * $PATH, the tool gets level "full". If not but this is a Radicle repo, it
- * gets "read" (can still use `rad cob list/show` as a fallback). Otherwise
- * "none".
+ * Each tool spec names a CLI binary. If the binary is on $PATH, the tool
+ * gets level "full"; otherwise "none".
  *
  * All `which` checks run in parallel.
  */
@@ -161,7 +156,7 @@ export async function detectTools(
   const checks = await Promise.all(
     toolSpecs.map(async (spec) => {
       const result = await pi.exec("which", [spec.name], { timeout: 3000 });
-      return [spec.name, result.code === 0 ? "full" as const : "read" as const] as const;
+      return [spec.name, result.code === 0 ? "full" as const : "none" as const] as const;
     }),
   );
 
@@ -177,8 +172,8 @@ export async function detectTools(
  */
 export async function detectCapabilities(pi: ExtensionAPI): Promise<RadicleCapabilities> {
   const reg = await detectTools(pi, [
-    { name: "rad-plan", cobType: "me.hdh.plan" },
-    { name: "rad-context", cobType: "me.hdh.context" },
+    { name: "rad-plan" },
+    { name: "rad-context" },
   ]);
 
   return {
