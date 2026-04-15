@@ -11,11 +11,13 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
 import {
   type Issue,
-  type RadicleCapabilities,
+  type ToolRegistry,
   shortId,
   syncNetwork,
   announceNetwork,
-  detectCapabilities,
+  detectTools,
+  hasTool,
+  requireTools,
   listOpenIssues,
   issueHasLinkedPlan,
   swapLabels,
@@ -24,7 +26,7 @@ import {
 // --- Types ---
 
 interface PlanLoopState {
-  caps: RadicleCapabilities;
+  reg: ToolRegistry;
   isRunning: boolean;
   cooldownMs: number;
   planLabel: string;
@@ -236,11 +238,10 @@ async function createPlanFromIssue(
 
 export default function (pi: ExtensionAPI) {
   const state: PlanLoopState = {
-    caps: {
+    reg: {
       isRadicleRepo: false,
-      radPlanInstalled: false,
-      radContextInstalled: false,
       repoId: null,
+      tools: new Map(),
     },
     isRunning: false,
     cooldownMs: DEFAULT_COOLDOWN_MS,
@@ -251,9 +252,11 @@ export default function (pi: ExtensionAPI) {
 
   // Detect capabilities
   pi.on("session_start", async (_event, ctx) => {
-    state.caps = await detectCapabilities(pi);
+    state.reg = await detectTools(pi, [
+      { name: "rad-plan", cobType: "me.hdh.plan" },
+    ]);
 
-    if (state.caps.isRadicleRepo && state.caps.radPlanInstalled) {
+    if (hasTool(state.reg, "rad-plan")) {
       ctx.ui.setStatus("rad-plan-loop", "ready");
     }
   });
@@ -262,14 +265,9 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-plan-loop", {
     description: "Watch for issues with a label and create Plan COBs from them",
     handler: async (args, ctx) => {
-      if (!state.caps.isRadicleRepo) {
-        ctx.ui.notify("Not a Radicle repository", "error");
-        return;
-      }
-      if (!state.caps.radPlanInstalled) {
-        ctx.ui.notify("rad-plan not installed. Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v", "error");
-        return;
-      }
+      if (!requireTools(state.reg, ctx, ["rad-plan"], {
+        "rad-plan": "Install from: rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v",
+      })) return;
 
       // Parse arguments
       const argList = args?.trim().split(/\s+/) ?? [];
@@ -442,7 +440,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("rad-plan-check", {
     description: "Check for issues ready for planning",
     handler: async (_args, ctx) => {
-      if (!state.caps.isRadicleRepo) {
+      if (!state.reg.isRadicleRepo) {
         ctx.ui.notify("Not a Radicle repository", "error");
         return;
       }
@@ -463,7 +461,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       // Check for approved plans
-      if (state.caps.radPlanInstalled) {
+      if (hasTool(state.reg, "rad-plan")) {
         const planResult = await pi.exec("rad-plan", ["list", "--status", "approved"], { timeout: 10000 });
         if (planResult.code === 0) {
           const approvedPlans = planResult.stdout.trim().split("\n").filter(l => l.trim());

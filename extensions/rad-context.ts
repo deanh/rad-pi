@@ -2,11 +2,10 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { buildSessionContext, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
 import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "../lib/rad-context-utils.ts";
+import { detectTools, hasTool, type ToolRegistry } from "../lib/rad-shared.ts";
 
 interface RadContextState {
-  isRadicleRepo: boolean;
-  radContextInstalled: boolean;
-  repoId: string | null;
+  reg: ToolRegistry;
   contextCreatedThisSession: boolean;
   sessionStartTime: number;
   // Stashed between session_before_compact and session_compact
@@ -45,9 +44,11 @@ Rules:
 
 export default function (pi: ExtensionAPI) {
   const state: RadContextState = {
-    isRadicleRepo: false,
-    radContextInstalled: false,
-    repoId: null,
+    reg: {
+      isRadicleRepo: false,
+      repoId: null,
+      tools: new Map(),
+    },
     contextCreatedThisSession: false,
     sessionStartTime: Date.now(),
     stashedConversation: null,
@@ -56,7 +57,7 @@ export default function (pi: ExtensionAPI) {
   };
 
   function isActive(): boolean {
-    return state.isRadicleRepo && state.radContextInstalled;
+    return state.reg.isRadicleRepo && hasTool(state.reg, "rad-context");
   }
 
   /**
@@ -215,23 +216,19 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     state.sessionStartTime = Date.now();
 
-    const radResult = await pi.exec("rad", ["."], { timeout: 5000 });
-    if (radResult.code !== 0) return;
+    state.reg = await detectTools(pi, [
+      { name: "rad-context", cobType: "me.hdh.context" },
+    ]);
 
-    state.isRadicleRepo = true;
-    state.repoId = radResult.stdout.trim();
-
-    const whichResult = await pi.exec("which", ["rad-context"], { timeout: 3000 });
-    if (whichResult.code !== 0) return;
-
-    state.radContextInstalled = true;
+    if (!state.reg.isRadicleRepo) return;
+    if (!hasTool(state.reg, "rad-context")) return;
 
     const listResult = await pi.exec("rad-context", ["list"], { timeout: 5000 });
     const contextCount = listResult.code === 0
       ? listResult.stdout.trim().split("\n").filter((l: string) => l.length > 0).length
       : 0;
 
-    let msg = `Radicle repo: ${state.repoId}`;
+    let msg = `Radicle repo: ${state.reg.repoId}`;
     if (contextCount > 0) {
       msg += ` · ${contextCount} context${contextCount === 1 ? "" : "s"}`;
     }
