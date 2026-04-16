@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Extracted from [rad-skill](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:zvBj4kByGeQSrSy2c4H7fyK42cS8) which contains the original development history.
 
+## [1.5.0] - 2026-04-16
+
+### Removed
+
+- `rad-experiment-hook` extension — moved to a separate module
+- `rad-experiment` skill — moved to a separate module
+
 ## [1.4.4] - 2026-04-15
 
 ### Fixed
