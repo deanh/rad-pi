@@ -1,0 +1,33 @@
+{
+  "name": "@rad-pi/cob",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Optional Radicle COB integrations for pi (plan and context)",
+  "keywords": ["pi-package", "radicle", "pi"],
+  "license": "MIT",
+  "files": [
+    "extensions/",
+    "lib/",
+    "skills/",
+    "README.md"
+  ],
+  "exports": {
+    "./lib/*": "./lib/*",
+    "./extensions/*": "./extensions/*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@rad-pi/core": "1.5.0"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "^0.64.0",
+    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@sinclair/typebox": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"]
+  }
+}

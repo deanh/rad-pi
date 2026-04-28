@@ -1,10 +1,12 @@
 {
   "name": "rad-pi",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "type": "module",
-  "description": "Radicle skills and extensions for pi — peer-to-peer code collaboration with Plan COBs, Context COBs, and multi-agent worktree orchestration",
+  "description": "Default Radicle package for pi: core deterministic tooling",
   "keywords": [
-    "pi-package"
+    "pi-package",
+    "radicle",
+    "pi"
   ],
   "author": "Harry Hudson",
   "license": "MIT",
@@ -12,17 +14,22 @@
     "type": "git",
     "url": "git+https://github.com/deanh/rad-pi.git"
   },
+  "workspaces": [
+    "packages/core",
+    "packages/cob",
+    "packages/autonomy"
+  ],
   "files": [
-    "extensions/",
-    "skills/",
-    "agents/",
-    "lib/",
+    "packages/core/",
     "LICENSE",
     "README.md",
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "npm run test --workspaces --if-present"
+  },
+  "dependencies": {
+    "@rad-pi/core": "1.5.0"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "^0.64.0",
@@ -31,10 +38,10 @@
   },
   "pi": {
     "extensions": [
-      "./extensions"
+      "./packages/core/extensions"
     ],
     "skills": [
-      "./skills"
+      "./packages/core/skills"
     ]
   }
 }

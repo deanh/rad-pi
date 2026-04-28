@@ -189,7 +189,7 @@ export async function detectCapabilities(pi: ExtensionAPI): Promise<RadicleCapab
 /**
  * Get the Radicle repository ID for the current working directory.
  */
-async function getRepoId(pi: ExtensionAPI): Promise<string | null> {
+export async function getRepoId(pi: ExtensionAPI): Promise<string | null> {
   const result = await pi.exec("rad", ["."], { timeout: 5000 });
   return result.code === 0 ? result.stdout.trim() : null;
 }
@@ -369,6 +369,26 @@ export async function swapLabels(
 
 // --- Git Operations ---
 
+export async function getCurrentBranch(pi: ExtensionAPI): Promise<string | null> {
+  const result = await pi.exec("git", ["branch", "--show-current"], { timeout: 5000 });
+  return result.code === 0 ? result.stdout.trim() : null;
+}
+
+export async function hasWorkingTreeChanges(pi: ExtensionAPI): Promise<boolean> {
+  const result = await pi.exec("git", ["status", "--porcelain"], { timeout: 5000 });
+  return result.code === 0 && result.stdout.trim().length > 0;
+}
+
+export async function getHeadSha(pi: ExtensionAPI): Promise<string | null> {
+  const result = await pi.exec("git", ["rev-parse", "HEAD"], { timeout: 5000 });
+  return result.code === 0 ? result.stdout.trim() : null;
+}
+
+export async function getMergeBase(pi: ExtensionAPI, a: string, b: string): Promise<string | null> {
+  const result = await pi.exec("git", ["merge-base", a, b], { timeout: 5000 });
+  return result.code === 0 ? result.stdout.trim() : null;
+}
+
 export async function returnToMain(pi: ExtensionAPI): Promise<void> {
   await pi.exec("git", ["checkout", "main"], { timeout: 10000 });
   await pi.exec("git", ["pull"], { timeout: 10000 });
@@ -386,8 +406,7 @@ export async function commitChanges(pi: ExtensionAPI, message: string): Promise<
   const commitResult = await pi.exec("git", ["commit", "-m", message], { timeout: 10000 });
   if (commitResult.code !== 0) return null;
 
-  const shaResult = await pi.exec("git", ["rev-parse", "HEAD"], { timeout: 5000 });
-  return shaResult.code === 0 ? shaResult.stdout.trim() : null;
+  return await getHeadSha(pi);
 }
 
 export async function pushPatch(pi: ExtensionAPI): Promise<string | null> {
@@ -396,6 +415,26 @@ export async function pushPatch(pi: ExtensionAPI): Promise<string | null> {
 
   const match = (result.stdout + result.stderr).match(/([0-9a-f]{40})/);
   return match ? match[1] : null;
+}
+
+export async function listPatchIds(pi: ExtensionAPI, repoId?: string): Promise<string[]> {
+  const effectiveRepoId = repoId ?? await getRepoId(pi);
+  if (!effectiveRepoId) return [];
+
+  const result = await pi.exec("rad", ["cob", "list", "--repo", effectiveRepoId, "--type", "xyz.radicle.patch"], { timeout: 10000 });
+  if (result.code !== 0) return [];
+  return result.stdout.trim().split("\n").filter(l => l.trim().length > 0);
+}
+
+export async function commentOnIssue(pi: ExtensionAPI, issueId: string, message: string): Promise<boolean> {
+  const result = await pi.exec("rad", ["issue", "comment", issueId, "--message", message], { timeout: 10000 });
+  return result.code === 0;
+}
+
+export async function setIssueState(pi: ExtensionAPI, issueId: string, state: "open" | "closed"): Promise<boolean> {
+  const flag = state === "closed" ? "--closed" : "--open";
+  const result = await pi.exec("rad", ["issue", "state", issueId, flag], { timeout: 10000 });
+  return result.code === 0;
 }
 
 export async function getModifiedFilesSince(pi: ExtensionAPI, ref: string): Promise<string[]> {

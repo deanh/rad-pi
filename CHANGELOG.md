@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Refactored the repository into a monorepo with layered packages:
+  - `@rad-pi/core` for deterministic Radicle agent tooling
+  - `@rad-pi/cob` for optional Plan/Context COB integrations
+  - `@rad-pi/autonomy` for issue loops, planning loops, orchestration, and workers
+- Converted the root `rad-pi` package into an umbrella package that points pi at the layered package-local skills and extensions
+- Moved shared helpers, skills, extensions, tests, and agents into package-scoped locations under `packages/`
+- Updated cross-package imports to use package names so the split packages can be published independently
+- Simplified the top-level README to document the new package architecture
+- Dropped the old `rad-experiment` hook from `@rad-pi/cob`; experiment publishing is now handled by the Community Computer `pi-cc` extension
+
 ## [1.1.0] - 2026-03-19
 
 ### Added

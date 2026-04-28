@@ -1,219 +1,51 @@
 # rad-pi
 
-A [pi](https://github.com/badlogic/pi-mono) package for working with [Radicle](https://radicle.xyz) — a peer-to-peer code collaboration protocol. Provides skills, extensions, and an agent for Radicle workflows including Plan COBs, Context COBs, and multi-agent worktree orchestration.
+Default Radicle package for [pi](https://github.com/badlogic/pi-mono).
 
-## Install
+## Install behavior
 
-Global (all projects):
+`npm install rad-pi` maps to the **core** experience:
+
+- deterministic Radicle agent tooling
+- a thin, tool-first core Radicle skill
+- shared baseline Radicle helpers and typed core tools
+
+It does **not** include the optional COB or autonomy layers by default.
+
+## Package lineup
+
+- `rad-pi` — default package, aligned with **core**
+- `@rad-pi/core` — deterministic Radicle agent tooling
+- `@rad-pi/cob` — optional Plan/Context COB integrations
+- `@rad-pi/autonomy` — optional issue loops, planning loops, orchestration, and workers
+
+## Versioning
+
+- `rad-pi`: `1.5.0`
+- `@rad-pi/core`: `1.5.0`
+- `@rad-pi/cob`: `0.1.0`
+- `@rad-pi/autonomy`: `0.1.0`
+
+Rationale:
+
+- `rad-pi` and `@rad-pi/core` continue the existing package line
+- `@rad-pi/cob` and `@rad-pi/autonomy` are new packages and start at `0.1.0`
+- there is **not** yet a published `@rad-pi/full` package, because pi package resource loading is simplest and most reliable when resources live inside the installed package itself; for now, `rad-pi` is the default/core package and the optional layers are installed explicitly
+- experiment publishing is no longer part of this repository; use Community Computer `pi-cc` for `rad experiment publish` automation
+
+## Monorepo layout
+
+```text
+packages/
+  core/       # baseline Radicle skill + shared helpers
+  cob/        # rad-plan and rad-context integrations
+  autonomy/   # loops, orchestrator, worker agent
+```
+
+## Development
+
+Run all package tests:
 
 ```bash
-pi install npm:rad-pi
+npm test
 ```
-
-Per-project (shared with your team via `.pi/settings.json`):
-
-```bash
-pi install -l npm:rad-pi
-```
-
-Try without installing:
-
-```bash
-pi -e npm:rad-pi
-```
-
-Also available via git:
-
-```bash
-pi install git:seed.radicle.garden/zSM6rc7C18JjDxn4tj1r7PuP9QHc.git
-pi install https://github.com/deanh/rad-pi
-```
-
-## Requirements
-
-- [Radicle](https://radicle.xyz/install) installed and configured (`rad auth`)
-- Radicle node running for network operations (`rad node start`)
-- Optional: [`rad-plan`](#install-rad-plan) CLI for Plan COB support
-- Optional: [`rad-context`](#install-rad-context) CLI for Context COB support
-
-All COB features gracefully degrade when their CLIs are not installed.
-
-## What's Included
-
-### Skills
-
-Four knowledge skills following the [Agent Skills](https://agentskills.io) standard:
-
-| Skill | Description |
-|-------|-------------|
-| **radicle** | Core `rad` CLI operations — init, clone, patch, issue, sync, node management |
-| **rad-plans** | Plan COBs (`me.hdh.plan`), `rad-plan` CLI, and interactive plan management |
-| **rad-contexts** | Context COBs (`me.hdh.context`) and `rad-context` CLI |
-| **rad-issue-loop** | Autonomous issue processing loop — check issues, work them, create contexts, submit patches |
-
-### Extensions
-
-| Extension | Description |
-|-----------|-------------|
-| **rad-context** | Detects Radicle repos at session start, auto-creates Context COBs on compaction and shutdown, provides `/rad-context` command |
-| **rad-orchestrator** | Multi-agent worktree orchestration via `/rad-orchestrate <plan-id>` |
-| **rad-issue-loop** | Autonomous issue processing loop via `/rad-issue-loop` |
-| **rad-experiment-hook** | Auto-publishes pi-autoresearch experiments as rad-experiment COBs |
-
-### Agent
-
-| Agent | Description |
-|-------|-------------|
-| **rad-worker** | Executes a single Plan COB task in an isolated worktree — produces one commit and one Context COB, then signals completion |
-
-## Commands
-
-### `/rad-context [list | show <id> | create]`
-
-Manage Context COBs:
-
-- **list** — show all contexts in the repo (default)
-- **show \<id\>** — display a specific context
-- **create** — trigger LLM reflection to create a context from the current session
-
-Context COBs are also created automatically:
-- On **compaction** — when the context window fills, the extension extracts observations from the compacted portion
-- On **shutdown** — if no context was created during the session, one is extracted from the full conversation
-
-### `/rad-orchestrate <plan-id>`
-
-Orchestrate multi-agent execution of a Plan COB across git worktrees:
-
-1. Analyzes the plan and identifies ready tasks (unblocked, no file conflicts)
-2. Creates isolated worktrees and spawns worker agents (up to 4 concurrent)
-3. Workers claim tasks, implement changes, commit, create Context COBs, and signal completion
-4. Orchestrator cherry-picks completed commits into a plan branch
-5. Repeats until all tasks are complete, then creates a single Radicle patch
-
-Features:
-- Live dashboard showing worker progress, turns, and activity
-- Retry failed workers interactively
-- Context feedback from completed workers informs subsequent batches
-- File conflict detection prevents parallel workers from touching the same files
-
-### Issue Loop Commands
-
-#### `/rad-issue-loop [options]`
-
-Run autonomous issue processing loop:
-
-```
-/rad-issue-loop              # Interactive mode (prompts for issue selection)
-/rad-issue-loop --auto       # Autonomous mode (selects first eligible issue)
-/rad-issue-loop --oneshot    # Process one issue then stop
-/rad-issue-loop --labels bug,feature  # Filter issues by labels
-/rad-issue-loop --status     # Show loop status
-/rad-issue-loop --stop       # Stop a running loop
-```
-
-The loop:
-1. **Sync** with network
-2. **Check** for open issues
-3. **Select** an eligible issue (open, no existing patch, matches labels)
-4. **Work** the issue (creates branch, injects work prompt)
-5. After completion, use `/rad-issue-work` to commit, create context, and push patch
-6. **Repeat** from step 1
-
-#### `/rad-issue-work [issue-id]`
-
-Complete the current issue work:
-
-- Commits any pending changes
-- Creates a Context COB with session observations
-- Pushes a Radicle patch
-- Links patch to issue
-- Returns to main branch
-
-If `issue-id` is omitted, detects from the current branch name (`issue-*`).
-
-#### `/rad-issue-skip`
-
-Skip the current issue work and return to main branch.
-
-#### `/rad-issue-check`
-
-Check for new issues, patches, and contexts (syncs first).
-
-## Context COBs
-
-Context COBs (`me.hdh.context`) capture what an agent learned during a coding session — approach, constraints, friction, learnings, and open items. They're durable records stored in Radicle that replicate across the network.
-
-The rad-context extension hooks into pi's lifecycle:
-
-1. When compaction triggers, the extension stashes the serialized conversation
-2. After compaction completes, a side-channel LLM call extracts structured observations
-3. The Context COB is created via `rad-context create --json`
-4. Commits from the session are linked, and the COB is announced to the network
-
-At shutdown, if no context was created during the session, the same extraction runs on the full conversation.
-
-### Install rad-context
-
-```bash
-rad clone rad:z2qBBbhVCfMiFEWN55oXKTPmKkrwY
-cd radicle-context-cob
-cargo install --path .
-rad-context --version
-```
-
-## Plan COBs
-
-Plan COBs (`me.hdh.plan`) store implementation plans as first-class Radicle objects. They track tasks with status, estimates, affected files, and dependencies, and link bidirectionally to issues and patches.
-
-### Install rad-plan
-
-```bash
-rad clone rad:z4L8L9ctRYn2bcPuUT4GRz7sggG1v
-cd radicle-plan-cob
-cargo install --path .
-rad-plan --version
-```
-
-## Experiment Publishing (pi-autoresearch bridge)
-
-The `rad-experiment-hook` extension automatically bridges [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) experiment loops with `rad-experiment` COBs. When both packages are installed and you're running an autoresearch loop in a Radicle repo, it:
-
-1. **On every kept experiment**: pushes the commit to Radicle storage and runs `publish-tape` to create an Experiment COB
-2. **On discard/crash/checks_failed**: pins the orphan commit to Radicle storage so it's available for inspection
-3. **On agent_end** (session stop): runs `publish-tape` as a safety net and announces to the network
-
-This replicates the `auto-publish.sh` Stop-hook behavior from the Claude Code community-computer plugin — but using pi's `tool_result` event system instead of Claude Code hooks.
-
-### Requirements
-
-- `rad-experiment` CLI on `$PATH` (see [rad-experiment SKILL.md](skills/rad-experiment/SKILL.md) for installation)
-- A Radicle repository (`rad init` has been run)
-- `pi-autoresearch` package installed
-
-All features gracefully degrade when `rad-experiment` is not installed or the repo is not a Radicle repo (silent no-op).
-
-### What gets published
-
-- Only experiments with `status: keep` become COBs (via `rad-experiment publish-tape`)
-- Discards, crashes, and `checks_failed` results are pinned to rad storage but not published as COBs
-- `publish-tape` is idempotent — only new `(base, head)` pairs are published
-- Session branch is pushed to `refs/heads/experiments/<slug>` for peer access
-
-### Comparison with Claude Code hooks
-
-| Claude Code hook | pi equivalent |
-|---|---|
-| `auto-publish.sh` (Stop) | `tool_result` event on `log_experiment` + `agent_end` safety net |
-| `guard-edits.sh` (PreToolUse) | Not needed — pi-autoresearch already protects session files during revert |
-| `guard-worktree-cleanup.sh` (Stop) | Not needed — pi-autoresearch uses in-place commits/reverts, not worktrees |
-
-## Provenance
-
-Extracted from [rad-skill](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:zvBj4kByGeQSrSy2c4H7fyK42cS8) which contains the original development history. The Claude Code plugin remains in that repository.
-
-**Radicle:** `rad:zSM6rc7C18JjDxn4tj1r7PuP9QHc`
-**GitHub mirror:** https://github.com/deanh/rad-pi
-
-## License
-
-MIT
