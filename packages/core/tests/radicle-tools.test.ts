@@ -56,7 +56,7 @@ describe("core radicle tools", () => {
       "rad .": { code: 0, stdout: "rad:z123\n" },
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
-      "rad clone rad:zabc --path ./repo": { code: 0, stdout: "cloned\n" },
+      "rad clone rad:zabc ./repo": { code: 0, stdout: "cloned\n" },
     });
     const result = await s.tool("rad_clone").execute("1", { rid: "rad:zabc", path: "./repo" });
     assert.equal(result.details.ok, true);
@@ -94,7 +94,7 @@ describe("core radicle tools", () => {
       "rad .": { code: 0, stdout: "rad:z123\n" },
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
-      "rad patch assign --add did:key:zabc abc123": { code: 0, stdout: "assigned\n" },
+      "rad patch assign abc123 --add did:key:zabc": { code: 0, stdout: "assigned\n" },
     });
     const result = await s.tool("rad_patch_assign").execute("1", { patchId: "abc123", did: "did:key:zabc" });
     assert.equal(result.details.ok, true);
@@ -121,7 +121,7 @@ describe("core radicle tools", () => {
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
       "git branch --show-current": { code: 0, stdout: "feature/test\n" },
-      "rad patch list --state open": { code: 0, stdout: "" },
+      "rad patch list --open": { code: 0, stdout: "" },
     });
     const result = await s.tool("rad_patch_update_revision").execute("1", {});
     assert.equal(result.details.ok, false);
@@ -135,11 +135,143 @@ describe("core radicle tools", () => {
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
       "git branch --show-current": { code: 0, stdout: "feature/test\n" },
-      "rad patch list --state open": { code: 0, stdout: "abc123 some patch\n" },
+      "rad patch list --open": { code: 0, stdout: "abc123 some patch\n" },
       "git push --force": { code: 0, stdout: "updated\n" },
     });
     const result = await s.tool("rad_patch_update_revision").execute("1", {});
     assert.equal(result.details.ok, true);
     assert.equal(result.details.branch, "feature/test");
+  });
+
+  it("rad_repo_probe surfaces repo, branch, node status, and tool registry", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 0 },
+      "which rad-context": { code: 1 },
+      "git branch --show-current": { code: 0, stdout: "feature/test\n" },
+      "rad node status": { code: 0, stdout: "running\n" },
+    });
+    const result = await s.tool("rad_repo_probe").execute("1", {});
+    assert.equal(result.details.isRadicleRepo, true);
+    assert.equal(result.details.repoId, "rad:z123");
+    assert.equal(result.details.branch, "feature/test");
+    assert.equal(result.details.nodeRunning, true);
+    assert.equal(result.details.optionalTools["rad-plan"], "full");
+    assert.equal(result.details.optionalTools["rad-context"], "none");
+  });
+
+  it("rad_self_show passes --did when didOnly is set", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad self --did": { code: 0, stdout: "did:key:z6Mk\n" },
+    });
+    const result = await s.tool("rad_self_show").execute("1", { didOnly: true });
+    assert.equal(result.details.ok, true);
+    assert.deepEqual(result.details.args, ["self", "--did"]);
+  });
+
+  it("rad_self_show uses rad node status --only nid when nidOnly is set", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad node status --only nid": { code: 0, stdout: "z6MkfuXg\n" },
+    });
+    const result = await s.tool("rad_self_show").execute("1", { nidOnly: true });
+    assert.equal(result.details.ok, true);
+    assert.deepEqual(result.details.args, ["node", "status", "--only", "nid"]);
+  });
+
+  it("rad_node_status reports running when the node responds", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad node status": { code: 0, stdout: "running\n" },
+    });
+    const result = await s.tool("rad_node_status").execute("1", {});
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.running, true);
+  });
+
+  it("rad_sync uses --fetch when fetchOnly is set", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad sync --fetch": { code: 0, stdout: "ok\n" },
+    });
+    const result = await s.tool("rad_sync").execute("1", { fetchOnly: true });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.mode, "fetch");
+  });
+
+  it("rad_sync uses --announce when announceOnly is set", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad sync --announce": { code: 0, stdout: "ok\n" },
+    });
+    const result = await s.tool("rad_sync").execute("1", { announceOnly: true });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.mode, "announce");
+  });
+
+  it("rad_patch_list defaults to open state and parses patch ids from output", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad patch list --open": { code: 0, stdout: "abc1234 some patch\ndef5678 another\n" },
+    });
+    const result = await s.tool("rad_patch_list").execute("1", {});
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.state, "open");
+    assert.deepEqual(result.details.patchIds, ["abc1234", "def5678"]);
+  });
+
+  it("rad_issue_comment posts a message via rad issue comment", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad issue comment abc123 --message hello there": { code: 0, stdout: "commented\n" },
+    });
+    const result = await s.tool("rad_issue_comment").execute("1", { issueId: "abc123", message: "hello there" });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.issueId, "abc123");
+    assert.equal(result.details.message, "hello there");
+  });
+
+  it("rad_issue_update_state uses --closed when closing", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad issue state abc123 --closed": { code: 0, stdout: "closed\n" },
+    });
+    const result = await s.tool("rad_issue_update_state").execute("1", { issueId: "abc123", state: "closed" });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.state, "closed");
+  });
+
+  it("rad_issue_update_labels adds and removes labels in sequence", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad issue label abc123 --add bug": { code: 0, stdout: "ok\n" },
+      "rad issue label abc123 --delete wontfix": { code: 0, stdout: "ok\n" },
+    });
+    const result = await s.tool("rad_issue_update_labels").execute("1", { issueId: "abc123", add: ["bug"], remove: ["wontfix"] });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.actions.length, 2);
+    assert.equal(result.details.actions[0].action, "add");
+    assert.equal(result.details.actions[0].label, "bug");
+    assert.equal(result.details.actions[1].action, "remove");
+    assert.equal(result.details.actions[1].label, "wontfix");
   });
 });

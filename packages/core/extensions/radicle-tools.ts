@@ -79,9 +79,22 @@ export default function (pi: ExtensionAPI) {
       homeOnly: Type.Optional(Type.Boolean({ description: "Return only the Radicle home directory" })),
     }),
     async execute(_toolCallId, params) {
+      if (params.nidOnly) {
+        // --nid is deprecated on `rad self`; use `rad node status --only nid` instead
+        const result = await pi.exec("rad", ["node", "status", "--only", "nid"], { timeout: 5000 });
+        return {
+          content: [{ type: "text", text: result.stdout.trim() || result.stderr.trim() || "(no output)" }],
+          details: {
+            ok: result.code === 0,
+            args: ["node", "status", "--only", "nid"],
+            stdout: result.stdout.trim(),
+            stderr: result.stderr.trim(),
+          },
+        };
+      }
+
       const args = ["self"];
       if (params.didOnly) args.push("--did");
-      else if (params.nidOnly) args.push("--nid");
       else if (params.homeOnly) args.push("--home");
 
       const result = await pi.exec("rad", args, { timeout: 5000 });
@@ -174,7 +187,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       if (params.state === "closed") {
-        const result = await pi.exec("rad", ["issue", "list", "--state", "closed"], { timeout: 10000 });
+        const result = await pi.exec("rad", ["issue", "list", "--closed"], { timeout: 10000 });
         return {
           content: [{ type: "text", text: result.stdout.trim() || result.stderr.trim() || "(no output)" }],
           details: {
@@ -238,7 +251,8 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params) {
       const state = params.state ?? "open";
-      const result = await pi.exec("rad", ["patch", "list", "--state", state], { timeout: 10000 });
+      const stateFlag = `--${state}`;
+      const result = await pi.exec("rad", ["patch", "list", stateFlag], { timeout: 10000 });
       return {
         content: [{ type: "text", text: result.stdout.trim() || result.stderr.trim() || "(no output)" }],
         details: {
@@ -443,7 +457,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       // Guard: verify at least one open patch exists (confirms we're in a patch workflow)
-      const patchListResult = await pi.exec("rad", ["patch", "list", "--state", "open"], { timeout: 10000 });
+      const patchListResult = await pi.exec("rad", ["patch", "list", "--open"], { timeout: 10000 });
       if (patchListResult.code !== 0 || !patchListResult.stdout.trim()) {
         return {
           content: [{ type: "text", text: "No open patches found — nothing to update. Use rad_patch_submit to create a patch first." }],
@@ -511,7 +525,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params) {
       const args = ["clone", params.rid];
-      if (params.path) args.push("--path", params.path);
+      if (params.path) args.push(params.path);
       const result = await pi.exec("rad", args, { timeout: 60000 });
       return {
         content: [{ type: "text", text: joinOutput(result.stdout, result.stderr) }],
@@ -616,7 +630,7 @@ export default function (pi: ExtensionAPI) {
       did: Type.String({ description: "Assignee DID" }),
     }),
     async execute(_toolCallId, params) {
-      const result = await pi.exec("rad", ["patch", "assign", "--add", params.did, params.patchId], { timeout: 10000 });
+      const result = await pi.exec("rad", ["patch", "assign", params.patchId, "--add", params.did], { timeout: 10000 });
       return {
         content: [{ type: "text", text: joinOutput(result.stdout, result.stderr) }],
         details: {
