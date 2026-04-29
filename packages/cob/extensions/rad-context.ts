@@ -2,7 +2,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { buildSessionContext, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
 import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "../lib/rad-context-utils.ts";
-import { detectTools, hasTool, type ToolRegistry } from "../lib/rad-shared.ts";
+import { announceNetwork, detectTools, hasTool, type ToolRegistry } from "@rad-pi/core/lib/rad-shared.ts";
 
 interface RadContextState {
   reg: ToolRegistry;
@@ -168,7 +168,7 @@ export default function (pi: ExtensionAPI) {
           }
         }
 
-        await pi.exec("rad", ["sync", "--announce"], { timeout: 15000 });
+        await announceNetwork(pi);
 
         state.contextCreatedThisSession = true;
         ctx.ui.notify(`Context created: ${contextId.slice(0, 8)}`, "info");
@@ -313,7 +313,7 @@ export default function (pi: ExtensionAPI) {
         if (result.code === 0 && result.stdout.trim()) {
           ctx.ui.notify(result.stdout.trim(), "info");
         } else {
-          ctx.ui.notify("No contexts found. Use /rad-context create to create one.", "info");
+          ctx.ui.notify("No contexts found. Use /rad-context create to draft one from the current session.", "info");
         }
       } else if (subcommand === "show" && rest) {
         const result = await pi.exec("rad-context", ["show", rest], { timeout: 10000 });
@@ -324,7 +324,7 @@ export default function (pi: ExtensionAPI) {
         }
       } else if (subcommand === "create") {
         pi.sendUserMessage(
-          "Reflect on this session and create a Context COB. Use the rad-contexts skill for the workflow: gather git data, reflect on approach/constraints/friction/learnings/open items, then pipe JSON to `rad-context create --json`. Present the draft for my review before creating.",
+          "Reflect on this session and create a Context COB. Use the rad-contexts skill for the workflow: gather git data, reflect on approach/constraints/friction/learnings/open items, then pipe JSON to `rad-context create --json`. Present the draft for my review before creating, and prefer shared repository helpers over ad hoc shell probing when possible.",
           { deliverAs: "followUp" },
         );
       } else if (subcommand === "auto") {

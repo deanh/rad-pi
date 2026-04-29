@@ -1,0 +1,39 @@
+{
+  "name": "@rad-pi/core",
+  "version": "1.5.1",
+  "type": "module",
+  "description": "Deterministic Radicle agent tooling for pi",
+  "keywords": [
+    "pi-package",
+    "radicle",
+    "pi"
+  ],
+  "license": "MIT",
+  "files": [
+    "extensions/",
+    "lib/",
+    "skills/",
+    "tests/",
+    "README.md"
+  ],
+  "exports": {
+    "./extensions/*": "./extensions/*",
+    "./lib/*": "./lib/*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "^0.64.0",
+    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@sinclair/typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

@@ -21,7 +21,8 @@ import {
   listOpenIssues,
   issueHasLinkedPlan,
   swapLabels,
-} from "../lib/rad-shared.ts";
+  getIssueDetails,
+} from "@rad-pi/core/lib/rad-shared.ts";
 
 // --- Types ---
 
@@ -99,9 +100,16 @@ async function createPlanFromIssue(
   const treeResult = await pi.exec("find", [".", "-type", "f", "-not", "-path", "./.git/*", "-not", "-path", "./node_modules/*", "-not", "-path", "./target/*"], { timeout: 10000 });
   const fileTree = treeResult.code === 0 ? treeResult.stdout.trim() : "(could not list files)";
 
-  // Get issue full details
-  const issueShowResult = await pi.exec("rad", ["issue", "show", issue.id], { timeout: 5000 });
-  const issueFullText = issueShowResult.code === 0 ? issueShowResult.stdout.trim() : issue.description;
+  // Get issue full details from the shared core helper
+  const freshIssue = await getIssueDetails(pi, issue.id);
+  const issueFullText = freshIssue
+    ? [
+        `Title: ${freshIssue.title}`,
+        `Status: ${freshIssue.status}`,
+        freshIssue.labels.length > 0 ? `Labels: ${freshIssue.labels.join(", ")}` : "Labels: none",
+        freshIssue.description ? `\n${freshIssue.description}` : "",
+      ].filter(Boolean).join("\n")
+    : issue.description;
 
   // 2. Call LLM to generate plan
   // Prefer session model first (handles custom API endpoints/configurations)

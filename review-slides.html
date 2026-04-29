@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rad-pi — Project Review</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a26;
+    --border: #2a2a3a;
+    --text: #e4e4ef;
+    --text-dim: #8888a0;
+    --accent: #7c6ef0;
+    --accent-light: #a99df5;
+    --green: #4ade80;
+    --green-dim: #22633e;
+    --orange: #fb923c;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --yellow: #fbbf24;
+  }
+
+  html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .slide {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    padding: 4rem 6rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(124,110,240,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .slide-number {
+    position: absolute;
+    top: 2rem;
+    right: 3rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* ---- Title Slide ---- */
+  .slide-title {
+    align-items: flex-start;
+    padding-top: 30vh;
+  }
+  .slide-title h1 {
+    font-size: 5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #fff 30%, var(--accent-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+  }
+  .slide-title .subtitle {
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    font-weight: 300;
+    max-width: 700px;
+  }
+  .slide-title .meta {
+    margin-top: 3rem;
+    display: flex;
+    gap: 2rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ---- Content Slides ---- */
+  h2 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 2.5rem;
+    color: #fff;
+  }
+  h2 .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-light);
+    background: rgba(124,110,240,0.15);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    margin-right: 0.75rem;
+    vertical-align: middle;
+    position: relative;
+    top: -2px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--accent-light);
+  }
+
+  .grid { display: grid; gap: 2rem; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem;
+  }
+  .card h3 {
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card p, .card li {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+  .card ul { padding-left: 1.25rem; }
+  .card li { margin-bottom: 0.4rem; }
+
+  .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .icon-purple { background: rgba(124,110,240,0.15); }
+  .icon-green { background: rgba(74,222,128,0.15); }
+  .icon-orange { background: rgba(251,146,60,0.15); }
+  .icon-blue { background: rgba(96,165,250,0.15); }
+  .icon-red { background: rgba(248,113,113,0.15); }
+
+  .big-list {
+    list-style: none;
+    padding: 0;
+  }
+  .big-list li {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    font-size: 1.05rem;
+  }
+  .big-list li:last-child { border-bottom: none; }
+  .big-list .label {
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    min-width: 160px;
+  }
+  .big-list .desc { color: var(--text-dim); }
+
+  .pill {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+  }
+  .pill-green { background: rgba(74,222,128,0.15); color: var(--green); }
+  .pill-orange { background: rgba(251,146,60,0.15); color: var(--orange); }
+  .pill-red { background: rgba(248,113,113,0.15); color: var(--red); }
+  .pill-blue { background: rgba(96,165,250,0.15); color: var(--blue); }
+  .pill-purple { background: rgba(124,110,240,0.15); color: var(--accent-light); }
+
+  .rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .rating-bar {
+    flex: 1;
+    max-width: 200px;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .rating-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .prose { max-width: 800px; }
+  .prose p {
+    font-size: 1.1rem;
+    color: var(--text-dim);
+    margin-bottom: 1.25rem;
+    line-height: 1.75;
+  }
+  .prose strong { color: #fff; }
+
+  .callout {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 1.25rem 1.5rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+  }
+  .callout p { margin: 0; font-size: 0.95rem; }
+
+  .verdict-box {
+    background: linear-gradient(135deg, rgba(124,110,240,0.1), rgba(96,165,250,0.05));
+    border: 1px solid rgba(124,110,240,0.3);
+    border-radius: 16px;
+    padding: 3rem;
+    text-align: center;
+    margin-top: 2rem;
+  }
+  .verdict-box h3 {
+    font-size: 1.6rem;
+    color: #fff;
+    margin-bottom: 1rem;
+  }
+  .verdict-box p {
+    font-size: 1.05rem;
+    color: var(--text-dim);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+  }
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    text-align: center;
+    min-width: 140px;
+  }
+  .flow-step .flow-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .flow-step .flow-label { font-size: 0.85rem; font-weight: 600; color: #fff; }
+  .flow-step .flow-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; }
+  .flow-arrow { color: var(--accent); font-size: 1.2rem; font-weight: 700; }
+
+  .arch-col { display: flex; flex-direction: column; gap: 1rem; }
+  .arch-layer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+  }
+  .arch-layer-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .arch-layer-header h3 { margin: 0; }
+  .arch-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .arch-chip {
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .score-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+  }
+  .score-item h4 {
+    font-size: 0.95rem;
+    color: #fff;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
+  .score-item p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .score-meter {
+    display: flex;
+    gap: 4px;
+    margin-top: 0.75rem;
+  }
+  .score-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--surface-2);
+  }
+  .score-dot.filled-green { background: var(--green); }
+  .score-dot.filled-orange { background: var(--orange); }
+  .score-dot.filled-red { background: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .slide { padding: 3rem 2rem; }
+    .slide-title h1 { font-size: 3rem; }
+    h2 { font-size: 1.8rem; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .score-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Nav */
+  .nav {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+    z-index: 100;
+    background: rgba(18,18,26,0.85);
+    backdrop-filter: blur(12px);
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+  }
+  .nav button {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .nav button:hover { background: var(--surface-2); color: #fff; }
+  .nav .page-indicator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== SLIDE 1: TITLE ========== -->
+<section class="slide slide-title" id="slide-1">
+  <div class="slide-number">01 / 12</div>
+  <h1>rad-pi</h1>
+  <p class="subtitle">Bridging sovereign code collaboration and autonomous AI agents — a pi package for peer-to-peer Radicle workflows</p>
+  <div class="meta">
+    <span>v1.5.0 · MIT</span>
+    <span>4 extensions · 5 skills · 1 agent</span>
+    <span>TypeScript + Markdown</span>
+  </div>
+</section>
+
+<!-- ========== SLIDE 2: WHAT IS IT ========== -->
+<section class="slide" id="slide-2">
+  <div class="slide-number">02 / 12</div>
+  <h2><span class="tag">Overview</span> What is rad-pi?</h2>
+  <div class="prose">
+    <p>
+      <strong>rad-pi</strong> is a <strong>pi package</strong> that turns the <a href="https://radicle.xyz" style="color:var(--accent-light)">Radicle</a> peer-to-peer code collaboration protocol into a first-class surface for AI coding agents. It provides skills, extensions, and an agent that together enable autonomous software development on Radicle-hosted repositories.
+    </p>
+    <p>
+      The core proposition: <strong>let AI agents collaborate on code the same way humans do</strong> — through issues, patches, and shared context — but on a fully decentralised, serverless network. No GitHub. No API keys for platforms. Just Git + gossip.
+    </p>
+  </div>
+  <div class="flow-diagram" style="margin-top:2rem;">
+    <div class="flow-step">
+      <div class="flow-icon">🏷️</div>
+      <div class="flow-label">Issue Created</div>
+      <div class="flow-sub">Human or AI</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon">📋</div>
+      <div class="flow-label">Plan COB</div>
+      <div class="flow-sub">LLM decomposes</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon">⚙️</div>
+      <div class="flow-label">Orchestrator</div>
+      <div class="flow-sub">Parallel workers</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon">🔀</div>
+      <div class="flow-label">Patch</div>
+      <div class="flow-sub">Merged & announced</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 3: GOALS ========== -->
+<section class="slide" id="slide-3">
+  <div class="slide-number">03 / 12</div>
+  <h2><span class="tag">Assessment</span> Assessed Project Goals</h2>
+  <ul class="big-list">
+    <li>
+      <span class="label">Autonomous P2P Dev</span>
+      <span class="desc">Enable AI agents to fully own the development lifecycle — from issue triage through implementation to patch submission — on a decentralised network with no central authority.</span>
+    </li>
+    <li>
+      <span class="label">Durable Agent Memory</span>
+      <span class="desc">Persist what agents learn across sessions as Context COBs — constraints, friction, code-level discoveries — replicating across the Radicle network so future agents (or humans) benefit.</span>
+    </li>
+    <li>
+      <span class="label">Parallel Orchestration</span>
+      <span class="desc">Decompose plans into independent tasks, execute them concurrently in isolated git worktrees (up to 4 workers), then cherry-pick and submit a unified patch.</span>
+    </li>
+    <li>
+      <span class="label">Graceful Degradation</span>
+      <span class="desc">Every COB feature works without its custom CLI. Core Radicle operations (issues, patches, sync) always function. Optional tools like <code>rad-plan</code> and <code>rad-context</code> enhance but don't gate.</span>
+    </li>
+    <li>
+      <span class="label">Modular Packaging</span>
+      <span class="desc">Ship as a composable pi package with standard skills + extensions + agents. Install globally or per-project. Mix and match components.</span>
+    </li>
+  </ul>
+</section>
+
+<!-- ========== SLIDE 4: ARCHITECTURE ========== -->
+<section class="slide" id="slide-4">
+  <div class="slide-number">04 / 12</div>
+  <h2><span class="tag">Architecture</span> System Design</h2>
+  <div class="grid grid-2" style="gap:2.5rem;">
+    <div class="arch-col">
+      <div class="arch-layer">
+        <div class="arch-layer-header">
+          <span class="icon icon-green">🧠</span>
+          <h3>Skills (Knowledge)</h3>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.75rem;">Markdown docs following the Agent Skills standard. Injected into the LLM context when relevant.</p>
+        <div class="arch-chips">
+          <span class="arch-chip">radicle</span>
+          <span class="arch-chip">rad-plans</span>
+          <span class="arch-chip">rad-contexts</span>
+          <span class="arch-chip">rad-issue-loop</span>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-layer-header">
+          <span class="icon icon-purple">🔌</span>
+          <h3>Extensions (Behaviour)</h3>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.75rem;">TypeScript modules that hook into pi lifecycle events and register slash-commands. Stateful, reactive.</p>
+        <div class="arch-chips">
+          <span class="arch-chip">rad-context</span>
+          <span class="arch-chip">rad-plan-loop</span>
+          <span class="arch-chip">rad-orchestrator</span>
+          <span class="arch-chip">rad-issue-loop</span>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-layer-header">
+          <span class="icon icon-orange">🤖</span>
+          <h3>Agent (Worker)</h3>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.75rem;">A markdown-defined agent (rad-worker) with frontmatter config. Spawned by the orchestrator in worktrees.</p>
+        <div class="arch-chips">
+          <span class="arch-chip">rad-worker.md</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="arch-layer" style="margin-bottom:1.5rem;">
+        <div class="arch-layer-header">
+          <span class="icon icon-blue">🧩</span>
+          <h3>Shared Library</h3>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.75rem;">Common utilities extracted for reuse and testability.</p>
+        <div class="arch-chips">
+          <span class="arch-chip">rad-shared.ts</span>
+          <span class="arch-chip">rad-context-utils.ts</span>
+        </div>
+      </div>
+      <div class="callout" style="margin-top:1.5rem;">
+        <p><strong>Two-loop architecture</strong></p>
+        <p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim);">
+          Loop 1 (<code style="color:var(--accent-light)">rad-plan-loop</code>): labeled issue → Plan COB (human reviews → approves)<br>
+          Loop 2 (<code style="color:var(--accent-light)">rad-orchestrate-loop</code>): approved plan → parallel execution → patch
+        </p>
+      </div>
+      <div class="callout" style="margin-top:1rem;">
+        <p><strong>Custom COB Types</strong></p>
+        <p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim);">
+          <code style="color:var(--green)">me.hdh.plan</code> — Structured plans with tasks, dependencies, estimates<br>
+          <code style="color:var(--green)">me.hdh.context</code> — Session observations (approach, constraints, friction, learnings)
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 5: TECHNICAL CHOICES ========== -->
+<section class="slide" id="slide-5">
+  <div class="slide-number">05 / 12</div>
+  <h2><span class="tag">Technical</span> Key Technical Choices</h2>
+  <div class="grid grid-3">
+    <div class="card">
+      <h3><span class="icon icon-purple">📜</span> TypeScript / ESM</h3>
+      <p>Extensions are native ES modules. Leverages pi's <code>ExtensionAPI</code> and <code>pi-ai</code> SDK directly. Zero build step — runs with <code>--experimental-strip-types</code>.</p>
+      <div class="rating"><span class="pill pill-green">strong fit</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-green">🔗</span> Radicle COBs</h3>
+      <p>Custom Collaborative Object types (plan, context) store structured data in the repo's p2p DAG. Durable, replicated, offline-first. Custom CLIs in Rust for validation.</p>
+      <div class="rating"><span class="pill pill-green">foundational</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-blue">🤖</span> LLM-as-extractor</h3>
+      <p>Side-channel LLM calls (preferring Haiku for cost) extract structured JSON from session conversations. Used for both context creation and plan generation.</p>
+      <div class="rating"><span class="pill pill-blue">pragmatic</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-orange">🌳</span> Git Worktrees</h3>
+      <p>Parallel workers get isolated worktrees. File conflict detection prevents overlapping writes. Cherry-pick strategy for final assembly into a single patch.</p>
+      <div class="rating"><span class="pill pill-green">elegant</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-blue">📡</span> Graceful Degradation</h3>
+      <p>Extensible <code>ToolRegistry</code> with capability levels (none/read/full). Features degrade smoothly when optional CLIs are missing. Never crashes on missing tools.</p>
+      <div class="rating"><span class="pill pill-green">excellent</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-purple">🧪</span> Testable Core</h3>
+      <p>Pure utilities extracted to <code>rad-context-utils.ts</code> with comprehensive unit tests. Side-effect-free parsing, merging, extraction logic. Node test runner.</p>
+      <div class="rating"><span class="pill pill-blue">good start</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 6: EXTENSIONS DEEP DIVE ========== -->
+<section class="slide" id="slide-6">
+  <div class="slide-number">06 / 12</div>
+  <h2><span class="tag">Deep Dive</span> Extension Capabilities</h2>
+  <div class="grid grid-2" style="gap:1.5rem;">
+    <div class="card">
+      <h3><span class="icon icon-green">🧠</span> rad-context</h3>
+      <ul>
+        <li>Hooks into <code>session_before_compact</code> and <code>session_shutdown</code></li>
+        <li>Stashes conversation pre-compaction, extracts context post-compaction</li>
+        <li>Side-channel Haiku call for cost-efficient extraction</li>
+        <li>Links commits and announces to network</li>
+        <li><code>/rad-context [list|show|create|auto]</code> commands</li>
+      </ul>
+      <div class="rating">
+        <span class="pill pill-green">mature</span>
+        <span style="font-size:0.8rem;color:var(--text-dim)">~200 lines · well-structured</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-orange">📋</span> rad-plan-loop</h3>
+      <ul>
+        <li>Watches for labeled issues (default: "TODO")</li>
+        <li>LLM generates structured plan with tasks + estimates</li>
+        <li>Creates Plan COB, links to issue, swaps labels</li>
+        <li>Configurable labels, auto-approve, polling cooldown</li>
+        <li>Biased toward single-task plans for simpler workflows</li>
+      </ul>
+      <div class="rating">
+        <span class="pill pill-green">solid</span>
+        <span style="font-size:0.8rem;color:var(--text-dim)">label swap with CRDT retry</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-purple">⚙️</span> rad-orchestrator</h3>
+      <ul>
+        <li>Multi-agent worktree orchestration (max 4 concurrent)</li>
+        <li>Live dashboard with worker progress, turns, cost</li>
+        <li>Dependency resolution, file conflict detection</li>
+        <li>Cherry-pick into plan branch → single Radicle patch</li>
+        <li>Context feedback from completed workers informs later batches</li>
+      </ul>
+      <div class="rating">
+        <span class="pill pill-orange">ambitious</span>
+        <span style="font-size:0.8rem;color:var(--text-dim)">~700 lines · the crown jewel</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-blue">🔄</span> rad-issue-loop</h3>
+      <ul>
+        <li>Direct issue → implementation → patch pipeline</li>
+        <li>Interactive or autonomous mode</li>
+        <li>Filters out plan-label issues (respects rad-plan-loop's domain)</li>
+        <li><code>/rad-issue-work</code> commits, creates context, pushes patch</li>
+        <li>Sync + poll loop with configurable cooldown</li>
+      </ul>
+      <div class="rating">
+        <span class="pill pill-blue">practical</span>
+        <span style="font-size:0.8rem;color:var(--text-dim)">simpler path for small issues</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 7: STRENGTHS ========== -->
+<section class="slide" id="slide-7">
+  <div class="slide-number">07 / 12</div>
+  <h2><span class="tag">Evaluation</span> Strengths</h2>
+  <div class="grid grid-2" style="gap:1.5rem;">
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>🎯 Tight Problem Focus</h3>
+      <p>The project addresses a real and specific gap: AI agents have no native way to participate in decentralised code collaboration. Every component serves that goal directly. No scope creep.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>🏗️ Layered Architecture</h3>
+      <p>Skills (knowledge) → Extensions (behaviour) → Agent (execution). Clean separation. Each layer composes independently. A user can use just the radicle skill without any extensions.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>🔄 Durable Agent Memory</h3>
+      <p>Context COBs are the standout innovation. By persisting structured observations (constraints, friction, learnings) as p2p-replicated objects, agents gain cross-session institutional memory. This is genuinely novel.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>🛡️ Defensive Engineering</h3>
+      <p>Graceful degradation everywhere. CRDT retry logic for label swaps. Verify-after-write for network ops. Safety-net DONE comments. Failure logs with full context. The orchestrator even checks whether the worker already posted DONE before doing it on their behalf.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>📦 Clean Packaging</h3>
+      <p><code>pi install npm:rad-pi</code> — one command. Standard <code>package.json</code> manifest. No build step. Tests runnable with <code>node --test</code>. Clear <code>files</code> whitelist.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>📐 Two-Loop Pattern</h3>
+      <p>Plan loop (issue → plan) + Orchestrate loop (plan → execution) creates a clean separation between <em>deciding what to do</em> and <em>doing it</em>. Human review lives between them. Elegant workflow design.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 8: WEAKNESSES ========== -->
+<section class="slide" id="slide-8">
+  <div class="slide-number">08 / 12</div>
+  <h2><span class="tag">Evaluation</span> Weaknesses & Risks</h2>
+  <div class="grid grid-2" style="gap:1.5rem;">
+    <div class="card" style="border-left:3px solid var(--orange);">
+      <h3>⚠️ External Dependency Surface</h3>
+      <p>Requires <code>rad</code>, optionally <code>rad-plan</code>, <code>rad-context</code> (Rust CLIs). Each must be separately compiled and installed. The README links to <code>rad clone</code> + <code>cargo install</code> — a barrier for non-Rust users. No fallback for plan/context without CLIs.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--orange);">
+      <h3>📏 Extension Code Size</h3>
+      <p><code>rad-orchestrator.ts</code> is ~700 lines with dispatch logic, worker spawning, retry, cherry-pick, and dashboard formatting all interleaved. Could benefit from extracting sub-modules (dashboard, worker-lifecycle, plan-mutation).</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--orange);">
+      <h3>🧪 Limited Test Coverage</h3>
+      <p>Tests cover pure utilities only (<code>rad-context-utils</code>, <code>rad-shared</code>). No integration tests for extensions. The orchestrator's complex state machine — the riskiest code — has zero automated coverage.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--red);">
+      <h3>🔓 Shell Injection Risk</h3>
+      <p>Context creation pipes JSON through <code>bash -c 'echo ... | rad-context create'</code> with single-quote escaping. Edge cases in JSON content (e.g. single quotes in values) could break the command. Should use stdin piping instead.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--orange);">
+      <h3>🤝 Human-in-the-Loop Friction</h3>
+      <p>The orchestrate loop breaks after dispatching a plan (it can't wait for the async orchestration). Requires manual re-invocation. The loop pattern is more "assisted batch" than "fully autonomous" — which may disappoint users expecting set-and-forget.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--orange);">
+      <h3>📖 Documentation vs Reality</h3>
+      <p>README is thorough but may over-promise autonomous operation. Some features (e.g. <code>--auto-approve</code>) bypass human review — the implications of auto-merging LLM-generated code into p2p repos are underserved as a risk discussion.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 9: DESIGN COMMUNICATION ========== -->
+<section class="slide" id="slide-9">
+  <div class="slide-number">09 / 12</div>
+  <h2><span class="tag">Assessment</span> How Well Does It Communicate Value?</h2>
+
+  <div class="score-grid">
+    <div class="score-item">
+      <h4>README & First Impression</h4>
+      <p>Install → requirements → what's included → commands → COB docs. Logical flow. Clear tables. The "try without installing" option is excellent for conversion.</p>
+      <div class="score-meter">
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot"></div>
+      </div>
+    </div>
+    <div class="score-item">
+      <h4>Value Proposition Clarity</h4>
+      <p>"P2P AI agent collaboration" is the pitch but the README buries the lede. Opens with install instructions before explaining <em>why</em>. A 2-sentence "Why rad-pi?" section at the top would help immensely.</p>
+      <div class="score-meter">
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-orange"></div>
+        <div class="score-dot"></div>
+        <div class="score-dot"></div>
+      </div>
+    </div>
+    <div class="score-item">
+      <h4>Technical Documentation</h4>
+      <p>Skills are well-documented. Extension code is readable with good comments. The worker agent prompt is a masterclass in structured LLM instructions — detailed, precise, boundary-aware.</p>
+      <div class="score-meter">
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot"></div>
+      </div>
+    </div>
+    <div class="score-item">
+      <h4>Differentiation Messaging</h4>
+      <p>Context COBs are genuinely novel — durable, network-replicated agent memory. But this killer feature isn't framed prominently enough. The README treats it as one of several features rather than the headline.</p>
+      <div class="score-meter">
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-orange"></div>
+        <div class="score-dot"></div>
+        <div class="score-dot"></div>
+      </div>
+    </div>
+    <div class="score-item">
+      <h4>Onboarding Friction</h4>
+      <p>Requires Radicle installed + node running + optional Rust CLIs compiled. For the target audience (Radicle users with pi), this is reasonable. For the curious onlooker, it's a multi-step gauntlet.</p>
+      <div class="score-meter">
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-orange"></div>
+        <div class="score-dot"></div>
+        <div class="score-dot"></div>
+      </div>
+    </div>
+    <div class="score-item">
+      <h4>Code Quality Signal</h4>
+      <p>Clean TypeScript. Consistent patterns across extensions. Good type usage. Tests for pure functions. CHANGELOG is maintained. Version 1.5.0 signals maturity. MIT license. The repo inspires confidence.</p>
+      <div class="score-meter">
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+        <div class="score-dot filled-green"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SLIDE 10: CONTEXT COBS ========== -->
+<section class="slide" id="slide-10">
+  <div class="slide-number">10 / 12</div>
+  <h2><span class="tag">Deep Dive</span> Why Context COBs Are the Highest-Value Piece</h2>
+
+  <div class="prose" style="max-width:100%;">
+    <p>
+      Every other component in rad-pi has direct analogues in existing systems. Issue loops exist in GitHub Actions. Multi-agent orchestration exists in Devin and similar tools. Plan decomposition is a standard LLM pattern. <strong>Context COBs have no equivalent anywhere.</strong>
+    </p>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:1.5rem;gap:1.5rem;">
+    <div class="card" style="border-left:3px solid var(--red);">
+      <h3>🔴 The Problem They Solve</h3>
+      <p>AI coding agents are <strong>stateless</strong>. Every new session starts from zero — no memory of what was tried, what failed, what assumptions were made. When session #2 starts, it can't see that session #1 discovered the auth middleware expects a specific header format, or that the database migration has a subtle ordering constraint. The agent repeats mistakes, re-discovers the same patterns, and violates assumptions that were valid when the code was written.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <h3>🟢 What Context COBs Do</h3>
+      <p>They extract structured observations from sessions and persist them as <strong>first-class Radicle objects</strong> — replicated across the p2p network, linked to commits/issues/plans, queryable by future agents. The extraction prompt is carefully designed: constraints are forward-looking ("valid as long as Redis is used for sessions"), friction is past-tense and specific ("type inference failed on nested generics in src/auth.rs:42").</p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:1.5rem;">
+    <p><strong>The extraction schema is agent-utility ranked:</strong></p>
+    <p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim);">
+      <span class="pill pill-red" style="margin-right:0.25rem;">Priority 1</span> <strong style="color:#fff;">constraints</strong> — guard rails affecting correctness &nbsp;
+      <span class="pill pill-orange" style="margin-right:0.25rem;">Priority 2</span> <strong style="color:#fff;">friction</strong> — avoid repeating past mistakes &nbsp;
+      <span class="pill pill-blue" style="margin-right:0.25rem;">Priority 3</span> <strong style="color:#fff;">learnings</strong> — accelerate codebase understanding &nbsp;
+      <span class="pill pill-green" style="margin-right:0.25rem;">Priority 4</span> <strong style="color:#fff;">approach</strong> — reasoning and rejected alternatives &nbsp;
+      <span class="pill pill-purple" style="margin-right:0.25rem;">Priority 5</span> <strong style="color:#fff;">open_items</strong> — what's incomplete
+    </p>
+  </div>
+</section>
+
+<!-- ========== SLIDE 11: CONTEXT COBS - MECHANISM ========== -->
+<section class="slide" id="slide-11">
+  <div class="slide-number">11 / 12</div>
+  <h2><span class="tag">Deep Dive</span> How Context COBs Create a Compounding Advantage</h2>
+
+  <div class="flow-diagram" style="margin-bottom:2rem;">
+    <div class="flow-step" style="min-width:160px;">
+      <div class="flow-icon">💬</div>
+      <div class="flow-label">Session Runs</div>
+      <div class="flow-sub">Agent writes code</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="min-width:160px;">
+      <div class="flow-icon">🧠</div>
+      <div class="flow-label">Compaction Triggers</div>
+      <div class="flow-sub">Conversation stashed</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="min-width:160px;">
+      <div class="flow-icon">⚗️</div>
+      <div class="flow-label">Haiku Extracts</div>
+      <div class="flow-sub">Structured JSON</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="min-width:160px;">
+      <div class="flow-icon">📦</div>
+      <div class="flow-label">COB Created</div>
+      <div class="flow-sub">Linked & announced</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="min-width:160px;">
+      <div class="flow-icon">🤖</div>
+      <div class="flow-label">Next Agent Loads</div>
+      <div class="flow-sub">Avoids same mistakes</div>
+    </div>
+  </div>
+
+  <div class="grid grid-3" style="gap:1.5rem;">
+    <div class="card">
+      <h3><span class="icon icon-green">⏱️</span> Lifecycle Hooks</h3>
+      <p>The extension hooks into two critical moments:</p>
+      <ul>
+        <li><strong style="color:#fff;">Compaction</strong> — conversation is stashed before summarization, then extracted after. No lossy summary — the raw conversation is captured.</li>
+        <li><strong style="color:#fff;">Shutdown</strong> — if no context was created mid-session, the full conversation is extracted as a fallback.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-purple">🔗</span> Bidirectional Links</h3>
+      <p>Contexts link to commits, issues, patches, and plans. This creates a navigable graph:</p>
+      <ul>
+        <li>A worker reads prior contexts before starting its task</li>
+        <li>The orchestrator checks constraints against remaining tasks between dispatch batches</li>
+        <li>A human can <code>rad-context show</code> to understand <em>why</em> something was built a certain way</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="icon icon-orange">📈</span> Compounding Returns</h3>
+      <p>Each session's context makes the next session smarter:</p>
+      <ul>
+        <li><strong style="color:#fff;">Session 1:</strong> Discovers codebase patterns, creates context</li>
+        <li><strong style="color:#fff;">Session 2:</strong> Loads context, avoids known friction, adds new findings</li>
+        <li><strong style="color:#fff;">Session N:</strong> Has accumulated institutional memory across all prior sessions</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><span class="pill pill-green">gets better with use</span></p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:1.5rem;">
+    <p><strong>Why this is unique:</strong> GitHub has no equivalent. Git commit messages are unstructured. PR descriptions are ephemeral. Notion/wiki docs rot. Context COBs are <em>automatically extracted</em>, <em>structured for machine consumption</em>, <em>linked to the exact code they describe</em>, and <em>replicated peer-to-peer</em>. Nothing else combines all four properties.</p>
+  </div>
+</section>
+
+<!-- ========== SLIDE 12: VERDICT ========== -->
+<section class="slide" id="slide-12">
+  <div class="slide-number">12 / 12</div>
+  <h2><span class="tag">Verdict</span> Final Assessment</h2>
+
+  <div class="prose">
+    <p>
+      <strong>rad-pi is a well-engineered, conceptually ambitious project</strong> that sits at the intersection of two emerging domains: sovereign peer-to-peer code hosting and autonomous AI development. The architecture is sound — skills/extensions/agents is a proven pi pattern, the two-loop workflow is elegant, and the defensive engineering (graceful degradation, CRDT retries, safety-net comments) reflects production-grade thinking.
+    </p>
+    <p>
+      The <strong>standout innovation is Context COBs</strong>: durable, network-replicated agent memory. This transforms AI coding sessions from ephemeral interactions into institutional knowledge. It's the kind of feature that, once you understand it, reframes how you think about AI-assisted development entirely.
+    </p>
+  </div>
+
+  <div class="verdict-box">
+    <h3>Design communicates clear value: <span style="color:var(--green);">Yes, with caveats</span></h3>
+    <p>
+      The engineering is stronger than the storytelling. A visitor needs to read deep into the README to discover the "why." The project would benefit enormously from a concise opening that frames the problem (AI agents on p2p networks need shared memory and structured workflows) and leads with Context COBs as the killer feature. <strong>The value is real — the packaging undersells it.</strong>
+    </p>
+  </div>
+
+  <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;">
+    <div style="text-align:center;">
+      <div style="font-size:2.5rem;font-weight:800;color:var(--green);">8</div>
+      <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem;">Technical Execution</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:2.5rem;font-weight:800;color:var(--orange);">6</div>
+      <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem;">Value Communication</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:2.5rem;font-weight:800;color:var(--accent-light);">9</div>
+      <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem;">Novelty & Vision</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:2.5rem;font-weight:800;color:var(--blue);">7</div>
+      <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem;">Production Readiness</div>
+    </div>
+  </div>
+</section>
+
+<!-- Navigation -->
+<nav class="nav">
+  <button onclick="go(-1)" title="Previous">←</button>
+  <span class="page-indicator" id="pageIndicator">1 / 10</span>
+  <button onclick="go(1)" title="Next">→</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const indicator = document.getElementById('pageIndicator');
+
+  function updateIndicator() {
+    const h = window.innerHeight;
+    const idx = Math.round(window.scrollY / h) + 1;
+    indicator.textContent = `${idx} / ${slides.length}`;
+  }
+
+  function go(dir) {
+    const h = window.innerHeight;
+    const current = Math.round(window.scrollY / h);
+    const next = Math.max(0, Math.min(slides.length - 1, current + dir));
+    slides[next].scrollIntoView({ behavior: 'smooth' });
+    setTimeout(updateIndicator, 400);
+  }
+
+  window.addEventListener('scroll', updateIndicator, { passive: true });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+  });
+</script>
+
+</body>
+</html>

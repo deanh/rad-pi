@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { buildSessionContext, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
-import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "../lib/rad-context-utils.ts";
+import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "@rad-pi/cob/lib/rad-context-utils.ts";
 import {
   type Issue,
   type ToolRegistry,
@@ -12,11 +12,17 @@ import {
   hasTool,
   listOpenIssues,
   returnToMain,
-  createFeatureBranch,
   commitChanges,
   pushPatch,
   getModifiedFilesSince,
-} from "../lib/rad-shared.ts";
+  commentOnIssue,
+  getRepoId,
+  listPatchIds,
+  getCurrentBranch,
+  hasWorkingTreeChanges,
+  getHeadSha,
+  getMergeBase,
+} from "@rad-pi/core/lib/rad-shared.ts";
 
 // --- Types ---
 
@@ -299,12 +305,12 @@ export default function (pi: ExtensionAPI) {
         pi.sendUserMessage(
           `You are working on Radicle issue ${shortId(selectedIssue.id)}: "${selectedIssue.title}"\n\n` +
           `Steps:\n` +
-          `1. Read issue details: rad issue show ${selectedIssue.id}\n` +
-          `2. Create a feature branch: git checkout -b issue-${shortId(selectedIssue.id)}\n` +
+          `1. Read issue details with the rad_issue_show tool for ${selectedIssue.id}\n` +
+          `2. Create a focused feature branch named issue-${shortId(selectedIssue.id)}\n` +
           `3. Implement the necessary changes\n` +
           `4. Run any tests/builds to verify\n` +
           `5. Commit your changes with a descriptive message\n` +
-          `6. Report what you did\n\n` +
+          `6. Report what you did and note any follow-up actions\n\n` +
           `Do NOT push a patch yet - just commit and report.`,
           { deliverAs: "steer" },
         );
@@ -342,8 +348,8 @@ export default function (pi: ExtensionAPI) {
 
       let issueId = args?.trim();
       if (!issueId) {
-        const branchResult = await pi.exec("git", ["branch", "--show-current"], { timeout: 5000 });
-        const match = branchResult.stdout.match(/issue-([0-9a-f]+)/);
+        const branch = await getCurrentBranch(pi);
+        const match = branch?.match(/issue-([0-9a-f]+)/);
         if (match) issueId ??= match[1];
       }
 
@@ -355,8 +361,7 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(`Completing work on issue ${shortId(issueId)}...`, "info");
 
       // 1. Commit
-      const statusResult = await pi.exec("git", ["status", "--porcelain"], { timeout: 5000 });
-      const hasChanges = statusResult.stdout.trim().length > 0;
+      const hasChanges = await hasWorkingTreeChanges(pi);
 
       let commitSha: string | null = null;
       if (hasChanges) {
@@ -368,8 +373,7 @@ export default function (pi: ExtensionAPI) {
         }
         ctx.ui.notify(`Committed: ${shortId(commitSha)}`, "info");
       } else {
-        const headResult = await pi.exec("git", ["rev-parse", "HEAD"], { timeout: 5000 });
-        commitSha = headResult.code === 0 ? headResult.stdout.trim() : null;
+        commitSha = await getHeadSha(pi);
       }
 
       // 2. Context COB
@@ -380,8 +384,7 @@ export default function (pi: ExtensionAPI) {
         const sessionContext = buildSessionContext(entries, ctx.sessionManager.getLeafId());
         const conversation = serializeConversation(convertToLlm(sessionContext.messages));
 
-        const branchPointResult = await pi.exec("git", ["merge-base", "main", "HEAD"], { timeout: 5000 });
-        const branchPoint = branchPointResult.code === 0 ? branchPointResult.stdout.trim() : "HEAD~1";
+        const branchPoint = await getMergeBase(pi, "main", "HEAD") ?? "HEAD~1";
         const modifiedFiles = await getModifiedFilesSince(pi, branchPoint);
 
         const contextId = await extractAndCreateContext(pi, ctx, conversation, modifiedFiles, issueId);
@@ -399,7 +402,7 @@ export default function (pi: ExtensionAPI) {
 
       if (patchId) {
         ctx.ui.notify(`Patch pushed: ${shortId(patchId)}`, "info");
-        await pi.exec("rad", ["issue", "comment", issueId, "--message", `Patch submitted: ${patchId}`], { timeout: 10000 });
+        await commentOnIssue(pi, issueId, `Patch submitted: ${patchId}`);
         await announceNetwork(pi);
       } else {
         ctx.ui.notify("Failed to push patch", "error");
@@ -448,13 +451,10 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify(`  - ${shortId(issue.id)}: ${issue.title} [${issue.labels.join(", ") || "no labels"}]`, "info");
       }
 
-      const repoId = (await pi.exec("rad", ["."], { timeout: 5000 })).stdout.trim();
+      const repoId = await getRepoId(pi);
       if (repoId) {
-        const patchResult = await pi.exec("rad", ["cob", "list", "--repo", repoId, "--type", "xyz.radicle.patch"], { timeout: 10000 });
-        if (patchResult.code === 0) {
-          const patches = patchResult.stdout.trim().split("\n").filter(l => l.trim());
-          ctx.ui.notify(`Patches: ${patches.length} total`, "info");
-        }
+        const patches = await listPatchIds(pi, repoId);
+        ctx.ui.notify(`Patches: ${patches.length} total`, "info");
       }
 
       if (hasTool(state.reg, "rad-context")) {

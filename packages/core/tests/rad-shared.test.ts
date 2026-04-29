@@ -5,6 +5,14 @@ import {
   type ToolLevel,
   hasTool,
   requireTools,
+  getRepoId,
+  listPatchIds,
+  commentOnIssue,
+  setIssueState,
+  getCurrentBranch,
+  hasWorkingTreeChanges,
+  getHeadSha,
+  getMergeBase,
 } from "../lib/rad-shared.ts";
 
 // --- hasTool ---
@@ -129,5 +137,86 @@ describe("requireTools", () => {
     assert.equal(result, false);
     assert.equal(notifications.length, 1);
     assert.match(notifications[0].msg, /rad-plan not installed/);
+  });
+});
+
+// --- command helpers ---
+
+describe("command helpers", () => {
+  function makePi(responses: Record<string, { code: number; stdout?: string; stderr?: string }>) {
+    return {
+      exec: async (cmd: string, args: string[]) => {
+        const key = [cmd, ...args].join(" ");
+        const response = responses[key] ?? { code: 1, stdout: "", stderr: "missing mock" };
+        return {
+          code: response.code,
+          stdout: response.stdout ?? "",
+          stderr: response.stderr ?? "",
+        };
+      },
+    } as any;
+  }
+
+  it("getRepoId returns current RID when rad dot succeeds", async () => {
+    const pi = makePi({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+    });
+    assert.equal(await getRepoId(pi), "rad:z123");
+  });
+
+  it("listPatchIds returns patch ids from cob list output", async () => {
+    const pi = makePi({
+      "rad cob list --repo rad:z123 --type xyz.radicle.patch": { code: 0, stdout: "abc123\ndef456\n" },
+    });
+    assert.deepEqual(await listPatchIds(pi, "rad:z123"), ["abc123", "def456"]);
+  });
+
+  it("commentOnIssue returns true when rad issue comment succeeds", async () => {
+    const pi = makePi({
+      "rad issue comment abc123 --message hello": { code: 0, stdout: "ok\n" },
+    });
+    assert.equal(await commentOnIssue(pi, "abc123", "hello"), true);
+  });
+
+  it("setIssueState uses --closed for closed state", async () => {
+    const pi = makePi({
+      "rad issue state abc123 --closed": { code: 0, stdout: "ok\n" },
+    });
+    assert.equal(await setIssueState(pi, "abc123", "closed"), true);
+  });
+
+  it("setIssueState uses --open for open state", async () => {
+    const pi = makePi({
+      "rad issue state abc123 --open": { code: 0, stdout: "ok\n" },
+    });
+    assert.equal(await setIssueState(pi, "abc123", "open"), true);
+  });
+
+  it("getCurrentBranch returns the current branch", async () => {
+    const pi = makePi({
+      "git branch --show-current": { code: 0, stdout: "feature/test\n" },
+    });
+    assert.equal(await getCurrentBranch(pi), "feature/test");
+  });
+
+  it("hasWorkingTreeChanges returns true when porcelain output is non-empty", async () => {
+    const pi = makePi({
+      "git status --porcelain": { code: 0, stdout: " M file.ts\n" },
+    });
+    assert.equal(await hasWorkingTreeChanges(pi), true);
+  });
+
+  it("getHeadSha returns HEAD sha", async () => {
+    const pi = makePi({
+      "git rev-parse HEAD": { code: 0, stdout: "deadbeef\n" },
+    });
+    assert.equal(await getHeadSha(pi), "deadbeef");
+  });
+
+  it("getMergeBase returns the merge base", async () => {
+    const pi = makePi({
+      "git merge-base main HEAD": { code: 0, stdout: "cafebabe\n" },
+    });
+    assert.equal(await getMergeBase(pi, "main", "HEAD"), "cafebabe");
   });
 });

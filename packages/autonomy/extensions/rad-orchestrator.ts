@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
-import { syncNetwork, announceNetwork, shortId as sharedShortId, detectTools, hasTool, requireTools, type ToolRegistry } from "../lib/rad-shared.ts";
+import { syncNetwork, announceNetwork, detectTools, hasTool, requireTools, pushPatch, setIssueState, getHeadSha, type ToolRegistry } from "@rad-pi/core/lib/rad-shared.ts";
 
 // --- Constants ---
 
@@ -744,25 +744,20 @@ async function completePlan(
     }
 
     // Link the cherry-picked commit (new SHA, not the worker's original)
-    const newShaResult = await pi.exec("git", ["rev-parse", "HEAD"], { timeout: 5000 });
-    const newSha = newShaResult.stdout.trim();
+    const newSha = await getHeadSha(pi);
+    if (!newSha) {
+      throw new Error(`Could not resolve HEAD after cherry-pick for task ${shortId(wd.task.id)}`);
+    }
     await pi.exec("rad-plan", [
       "task", "link-commit", planId, wd.task.id, "--commit", newSha,
     ], { timeout: 10000 });
   }
 
   // Push the Radicle patch
-  const pushResult = await pi.exec("git", ["push", "rad", "HEAD:refs/patches"], { timeout: 30000 });
-  if (pushResult.code !== 0) {
-    const preview = (pushResult.stderr || pushResult.stdout).split("\n").slice(0, 3).join("\n");
-    throw new Error(`Patch push failed (exit ${pushResult.code}): ${preview}`);
+  const patchId = await pushPatch(pi);
+  if (!patchId) {
+    throw new Error("Patch push failed or no patch ID was returned");
   }
-  const pushOutput = (pushResult.stdout + "\n" + pushResult.stderr).trim();
-  const patchIdMatch = pushOutput.match(/([0-9a-f]{40})/);
-  if (!patchIdMatch) {
-    throw new Error(`Patch push succeeded but no patch ID found in output: ${pushOutput.slice(0, 200)}`);
-  }
-  const patchId = patchIdMatch[1];
 
   // Verify patch exists
   const verifyResult = await pi.exec("rad", ["patch", "show", patchId], { timeout: 10000 });
@@ -778,7 +773,7 @@ async function completePlan(
 
   // Close linked issues
   for (const issueId of state.plan.relatedIssues) {
-    await pi.exec("rad", ["issue", "state", issueId, "--closed"], { timeout: 10000 });
+    await setIssueState(pi, issueId, "closed");
   }
 
   // Clean up worktrees
@@ -787,7 +782,7 @@ async function completePlan(
   }
 
   // Announce
-  await pi.exec("rad", ["sync", "--announce"], { timeout: 15000 });
+  await announceNetwork(pi);
 
   return { patchId };
 }
@@ -974,8 +969,12 @@ export default function (pi: ExtensionAPI) {
 
         // Record base commit before creating worktrees (first batch only)
         if (!baseCommit) {
-          const headResult = await pi.exec("git", ["rev-parse", "HEAD"], { timeout: 5000 });
-          baseCommit = headResult.stdout.trim();
+          baseCommit = await getHeadSha(pi);
+          if (!baseCommit) {
+            cleanupDashboard();
+            ctx.ui.notify("Could not resolve current HEAD before dispatch.", "error");
+            break;
+          }
         }
 
         // Create worktrees and spawn workers
