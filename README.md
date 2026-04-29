@@ -21,17 +21,13 @@ It does **not** include the optional COB or autonomy layers by default.
 
 ## Versioning
 
-- `rad-pi`: `1.5.0`
-- `@rad-pi/core`: `1.5.0`
-- `@rad-pi/cob`: `0.1.0`
-- `@rad-pi/autonomy`: `0.1.0`
+Managed with [changesets](https://github.com/changesets/changesets). Per-package versions are tracked in their respective `package.json` files and `CHANGELOG.md` files are auto-generated on release.
 
-Rationale:
-
-- `rad-pi` and `@rad-pi/core` continue the existing package line
-- `@rad-pi/cob` and `@rad-pi/autonomy` are new packages and start at `0.1.0`
-- there is **not** yet a published `@rad-pi/full` package, because pi package resource loading is simplest and most reliable when resources live inside the installed package itself; for now, `rad-pi` is the default/core package and the optional layers are installed explicitly
-- experiment publishing is no longer part of this repository; use Community Computer `pi-cc` for `rad experiment publish` automation
+```bash
+npx changeset          # describe a change
+npx changeset version  # bump packages
+npx changeset publish  # publish to npm
+```
 
 ## Monorepo layout
 
