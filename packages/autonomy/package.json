@@ -1,9 +1,13 @@
 {
   "name": "@rad-pi/autonomy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Autonomous Radicle issue, plan, and orchestration workflows for pi",
-  "keywords": ["pi-package", "radicle", "pi"],
+  "keywords": [
+    "pi-package",
+    "radicle",
+    "pi"
+  ],
   "license": "MIT",
   "files": [
     "extensions/",
@@ -16,8 +20,8 @@
     "./agents/*": "./agents/*"
   },
   "dependencies": {
-    "@rad-pi/core": "1.5.0",
-    "@rad-pi/cob": "0.1.0"
+    "@rad-pi/core": "1.5.1",
+    "@rad-pi/cob": "0.1.1"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "^0.64.0",
@@ -25,7 +29,11 @@
     "@sinclair/typebox": "*"
   },
   "pi": {
-    "extensions": ["./extensions"],
-    "skills": ["./skills"]
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ]
   }
 }

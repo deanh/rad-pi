@@ -43,5 +43,8 @@
     "skills": [
       "./packages/core/skills"
     ]
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0"
   }
 }
