@@ -26,7 +26,7 @@ Display current identity information.
 ```bash
 rad self                    # Show DID, NID, alias
 rad self --did              # Show only DID
-rad self --nid              # Show only Node ID
+rad node status --only nid  # Show only Node ID
 rad self --home             # Show Radicle home directory
 ```
 
@@ -52,7 +52,7 @@ Clone a repository from the network.
 
 ```bash
 rad clone rad:<RID>                         # Clone by RID
-rad clone rad:<RID> --path ./dir            # Specify directory
+rad clone rad:<RID> ./dir                   # Specify directory
 rad clone rad:<RID> --no-seed               # Clone without seeding
 rad clone rad:<RID> --scope followed        # Limit to followed delegates
 rad clone rad:<RID> --scope all             # Include all contributors
@@ -102,14 +102,16 @@ Work with patches (pull request equivalent).
 
 ```bash
 # List patches
-rad patch list                              # List all patches
-rad patch list --state open                 # List open patches
-rad patch list --state merged               # List merged patches
-rad patch list --state closed               # List closed patches
+rad patch list                              # List open patches
+rad patch list --all                        # List all patches
+rad patch list --merged                     # List merged patches
+rad patch list --draft                      # List draft patches
+rad patch list --archived                   # List archived patches
 rad patch list --author <DID>               # Filter by author
 
 # Show patch
 rad patch show <PATCH_ID>                   # Show patch details
+rad patch show <PATCH_ID> --patch           # Include diff
 rad patch show <PATCH_ID> --revision 2      # Show specific revision
 
 # Diff
@@ -120,13 +122,14 @@ rad patch diff <PATCH_ID> --revision 2      # Diff specific revision
 rad patch checkout <PATCH_ID>               # Checkout patch branch
 rad patch checkout <PATCH_ID> --revision 2  # Checkout specific revision
 
-# Comment
-rad patch comment <PATCH_ID>                # Add comment (opens editor)
-rad patch comment <PATCH_ID> --message "text"  # Inline comment
+# Comment (takes a revision ID, not a patch ID)
+rad patch comment <REVISION_ID>             # Add comment (opens editor)
+rad patch comment <REVISION_ID> -m "text"   # Inline comment
 
 # Review
 rad patch review <PATCH_ID> --accept        # Accept patch
 rad patch review <PATCH_ID> --reject        # Reject patch
+rad patch review <PATCH_ID> --accept -m "text"  # Accept with message
 
 # Archive/Unarchive
 rad patch archive <PATCH_ID>                # Archive patch
@@ -139,8 +142,24 @@ rad patch unarchive <PATCH_ID>              # Unarchive patch
 # Open new patch (magic ref)
 git push rad HEAD:refs/patches
 
-# Update existing patch
-git push --force
+# Set or edit patch title/description after opening
+rad patch edit <PATCH_ID> -m "Title
+
+Body"
+
+# Other push options
+git push rad -o patch.draft HEAD:refs/patches          # open as draft
+git push rad -o patch.base=<commit> HEAD:refs/patches  # set base commit
+git push rad -o no-sync HEAD:refs/patches              # don't announce after push
+
+# Supported push options: patch.message=<text> (repeatable, no newlines),
+# patch.draft, patch.base=<rev>, patch.branch[=<name>], sync, no-sync, hints.
+
+# Update existing patch from a patch branch
+git push rad
+
+# Update existing patch after rebase/amend
+git push --force rad
 
 # Push and set upstream
 git push -u rad HEAD:refs/patches
@@ -157,11 +176,14 @@ Manage issues.
 rad issue open                              # Open editor for new issue
 rad issue open --title "Title"              # Set title
 rad issue open --title "T" --description "D"  # Set title and description
+rad issue open --title "T" --description "D" --labels "bug ux"  # Set labels
+rad issue open --title "T" --assignees <DID>  # Set assignees
 
 # List
-rad issue list                              # List all issues
-rad issue list --state open                 # List open issues
-rad issue list --state closed               # List closed issues
+rad issue list                              # List open issues
+rad issue list --all                        # List all issues
+rad issue list --closed                     # List closed issues
+rad issue list --solved                     # List solved issues
 rad issue list --assigned                   # List assigned issues
 rad issue list --author <DID>               # Filter by author
 
@@ -175,14 +197,15 @@ rad issue comment <ISSUE_ID> --message "text"  # Inline comment
 # State
 rad issue state <ISSUE_ID> --closed         # Close issue
 rad issue state <ISSUE_ID> --open           # Reopen issue
+rad issue state <ISSUE_ID> --solved         # Mark issue solved
 
 # Assignment
 rad issue assign <ISSUE_ID> --add <DID>     # Assign to peer
-rad issue assign <ISSUE_ID> --remove <DID>  # Unassign
+rad issue assign <ISSUE_ID> --delete <DID>  # Unassign
 
 # Labels
 rad issue label <ISSUE_ID> --add bug        # Add label
-rad issue label <ISSUE_ID> --remove bug     # Remove label
+rad issue label <ISSUE_ID> --delete bug     # Remove label
 ```
 
 ## Node Commands

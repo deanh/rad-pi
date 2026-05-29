@@ -174,7 +174,10 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       state: Type.Optional(Type.Union([
         Type.Literal("open"),
+        Type.Literal("all"),
         Type.Literal("closed"),
+        Type.Literal("solved"),
+        Type.Literal("assigned"),
       ], { description: "Issue state filter" })),
       labels: Type.Optional(Type.Array(Type.String(), { description: "Filter issues by labels" })),
     }),
@@ -186,13 +189,13 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      if (params.state === "closed") {
-        const result = await pi.exec("rad", ["issue", "list", "--closed"], { timeout: 10000 });
+      if (params.state && params.state !== "open") {
+        const result = await pi.exec("rad", ["issue", "list", `--${params.state}`], { timeout: 10000 });
         return {
           content: [{ type: "text", text: result.stdout.trim() || result.stderr.trim() || "(no output)" }],
           details: {
             ok: result.code === 0,
-            state: "closed",
+            state: params.state,
             raw: result.stdout.trim(),
           },
         };
@@ -244,6 +247,7 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       state: Type.Optional(Type.Union([
         Type.Literal("open"),
+        Type.Literal("all"),
         Type.Literal("draft"),
         Type.Literal("merged"),
         Type.Literal("archived"),
@@ -251,8 +255,8 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params) {
       const state = params.state ?? "open";
-      const stateFlag = `--${state}`;
-      const result = await pi.exec("rad", ["patch", "list", stateFlag], { timeout: 10000 });
+      const args = state === "open" ? ["patch", "list"] : ["patch", "list", `--${state}`];
+      const result = await pi.exec("rad", args, { timeout: 10000 });
       return {
         content: [{ type: "text", text: result.stdout.trim() || result.stderr.trim() || "(no output)" }],
         details: {
@@ -276,14 +280,18 @@ export default function (pi: ExtensionAPI) {
     ],
     parameters: Type.Object({
       patchId: Type.String({ description: "Patch ID, short or full" }),
+      includeDiff: Type.Optional(Type.Boolean({ description: "Include the patch diff via --patch" })),
     }),
     async execute(_toolCallId, params) {
-      const result = await pi.exec("rad", ["patch", "show", params.patchId], { timeout: 10000 });
+      const args = ["patch", "show", params.patchId];
+      if (params.includeDiff) args.push("--patch");
+      const result = await pi.exec("rad", args, { timeout: 10000 });
       return {
         content: [{ type: "text", text: result.stdout.trim() || result.stderr.trim() || "(no output)" }],
         details: {
           ok: result.code === 0,
           patchId: params.patchId,
+          includeDiff: !!params.includeDiff,
           stdout: result.stdout.trim(),
           stderr: result.stderr.trim(),
         },
@@ -331,10 +339,11 @@ export default function (pi: ExtensionAPI) {
       state: Type.Union([
         Type.Literal("open"),
         Type.Literal("closed"),
+        Type.Literal("solved"),
       ], { description: "Target issue state" }),
     }),
     async execute(_toolCallId, params) {
-      const flag = params.state === "closed" ? "--closed" : "--open";
+      const flag = `--${params.state}`;
       const result = await pi.exec("rad", ["issue", "state", params.issueId, flag], { timeout: 10000 });
       return {
         content: [{ type: "text", text: joinOutput(result.stdout, result.stderr) }],
@@ -457,7 +466,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       // Guard: verify at least one open patch exists (confirms we're in a patch workflow)
-      const patchListResult = await pi.exec("rad", ["patch", "list", "--open"], { timeout: 10000 });
+      const patchListResult = await pi.exec("rad", ["patch", "list"], { timeout: 10000 });
       if (patchListResult.code !== 0 || !patchListResult.stdout.trim()) {
         return {
           content: [{ type: "text", text: "No open patches found — nothing to update. Use rad_patch_submit to create a patch first." }],
@@ -496,7 +505,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params) {
       const args = ["patch", "review", params.patchId, params.decision === "accept" ? "--accept" : "--reject"];
-      if (params.message) args.push("--message", params.message);
+      if (params.message) args.push("-m", params.message);
       const result = await pi.exec("rad", args, { timeout: 10000 });
       return {
         content: [{ type: "text", text: joinOutput(result.stdout, result.stderr) }],
@@ -651,15 +660,30 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Create a Radicle patch from the current branch deterministically",
     promptGuidelines: [
       "Use rad_patch_submit when the user asks to create, open, or submit a patch from the current branch.",
+      "Pass base when the patch should be based on a commit or revspec other than the repository's default branch tip; this uses git push -o patch.base=<rev>.",
     ],
-    parameters: Type.Object({}),
-    async execute() {
-      const patchId = await pushPatch(pi);
+    parameters: Type.Object({
+      base: Type.Optional(Type.String({ description: "Optional base commit/revspec for patch.base=<rev> when the patch is not based on the default branch tip" })),
+      draft: Type.Optional(Type.Boolean({ description: "Open as draft via patch.draft" })),
+      noSync: Type.Optional(Type.Boolean({ description: "Do not announce after push via no-sync" })),
+      branch: Type.Optional(Type.String({ description: "Optional patch branch name via patch.branch=<name>" })),
+    }),
+    async execute(_toolCallId, params) {
+      const patchId = await pushPatch(pi, {
+        base: params.base,
+        draft: params.draft,
+        noSync: params.noSync,
+        branch: params.branch,
+      });
       return {
         content: [{ type: "text", text: patchId ? `Patch created: ${patchId}` : "Failed to create patch" }],
         details: {
           ok: !!patchId,
           patchId,
+          base: params.base ?? null,
+          draft: !!params.draft,
+          noSync: !!params.noSync,
+          branch: params.branch ?? null,
         },
       };
     },

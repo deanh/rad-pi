@@ -1,5 +1,25 @@
 # @rad-pi/core
 
+## 1.6.0
+
+### Minor Changes
+
+- feat: support non-default patch bases in `rad_patch_submit`
+
+  `rad_patch_submit` now accepts Radicle push options:
+
+  - `base` → `git push -o patch.base=<rev> HEAD:refs/patches`
+  - `draft` → `git push -o patch.draft HEAD:refs/patches`
+  - `branch` → `git push -o patch.branch=<name> HEAD:refs/patches`
+  - `noSync` → `git push -o no-sync HEAD:refs/patches`
+
+### Patch Changes
+
+- docs: update bundled Radicle skill and command reference to match latest upstream guidance
+- fix: use current Radicle CLI forms for patch/issue list filters and patch review messages
+- feat: add `includeDiff` option to `rad_patch_show` for `rad patch show --patch`
+- feat: support `all`, `solved`, and `assigned` issue list/state workflows where applicable
+
 ## 1.5.1
 
 ### Patch Changes

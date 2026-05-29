@@ -409,8 +409,26 @@ export async function commitChanges(pi: ExtensionAPI, message: string): Promise<
   return await getHeadSha(pi);
 }
 
-export async function pushPatch(pi: ExtensionAPI): Promise<string | null> {
-  const result = await pi.exec("git", ["push", "rad", "HEAD:refs/patches"], { timeout: 30000 });
+export interface PushPatchOptions {
+  /** Set the patch base commit/revspec via `git push -o patch.base=<rev>`. */
+  base?: string;
+  /** Open the patch as a draft via `git push -o patch.draft`. */
+  draft?: boolean;
+  /** Avoid announcing after push via `git push -o no-sync`. */
+  noSync?: boolean;
+  /** Set the patch branch name via `git push -o patch.branch=<name>`. */
+  branch?: string;
+}
+
+export async function pushPatch(pi: ExtensionAPI, options: PushPatchOptions = {}): Promise<string | null> {
+  const args = ["push", "rad"];
+  if (options.draft) args.push("-o", "patch.draft");
+  if (options.base) args.push("-o", `patch.base=${options.base}`);
+  if (options.branch) args.push("-o", `patch.branch=${options.branch}`);
+  if (options.noSync) args.push("-o", "no-sync");
+  args.push("HEAD:refs/patches");
+
+  const result = await pi.exec("git", args, { timeout: 30000 });
   if (result.code !== 0) return null;
 
   const match = (result.stdout + result.stderr).match(/([0-9a-f]{40})/);

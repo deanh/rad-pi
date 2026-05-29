@@ -43,7 +43,7 @@ describe("core radicle tools", () => {
       "rad .": { code: 0, stdout: "rad:z123\n" },
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
-      "rad patch review abc123 --accept --message looks good": { code: 0, stdout: "accepted\n" },
+      "rad patch review abc123 --accept -m looks good": { code: 0, stdout: "accepted\n" },
     });
     const result = await s.tool("rad_patch_review").execute("1", { patchId: "abc123", decision: "accept", message: "looks good" });
     assert.equal(result.details.ok, true);
@@ -102,6 +102,19 @@ describe("core radicle tools", () => {
     assert.equal(result.details.did, "did:key:zabc");
   });
 
+  it("rad_patch_show includes --patch when diff is requested", async () => {
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "rad patch show abc123 --patch": { code: 0, stdout: "patch details with diff\n" },
+    });
+    const result = await s.tool("rad_patch_show").execute("1", { patchId: "abc123", includeDiff: true });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.patchId, "abc123");
+    assert.equal(result.details.includeDiff, true);
+  });
+
   it("rad_patch_update_revision refuses when on main", async () => {
     const s = setup({
       "rad .": { code: 0, stdout: "rad:z123\n" },
@@ -121,7 +134,7 @@ describe("core radicle tools", () => {
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
       "git branch --show-current": { code: 0, stdout: "feature/test\n" },
-      "rad patch list --open": { code: 0, stdout: "" },
+      "rad patch list": { code: 0, stdout: "" },
     });
     const result = await s.tool("rad_patch_update_revision").execute("1", {});
     assert.equal(result.details.ok, false);
@@ -135,12 +148,26 @@ describe("core radicle tools", () => {
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
       "git branch --show-current": { code: 0, stdout: "feature/test\n" },
-      "rad patch list --open": { code: 0, stdout: "abc123 some patch\n" },
+      "rad patch list": { code: 0, stdout: "abc123 some patch\n" },
       "git push --force": { code: 0, stdout: "updated\n" },
     });
     const result = await s.tool("rad_patch_update_revision").execute("1", {});
     assert.equal(result.details.ok, true);
     assert.equal(result.details.branch, "feature/test");
+  });
+
+  it("rad_patch_submit passes patch.base when a non-default base is requested", async () => {
+    const sha = "1234567890abcdef1234567890abcdef12345678";
+    const s = setup({
+      "rad .": { code: 0, stdout: "rad:z123\n" },
+      "which rad-plan": { code: 1 },
+      "which rad-context": { code: 1 },
+      "git push rad -o patch.base=deadbeef HEAD:refs/patches": { code: 0, stderr: `created patch ${sha}\n` },
+    });
+    const result = await s.tool("rad_patch_submit").execute("1", { base: "deadbeef" });
+    assert.equal(result.details.ok, true);
+    assert.equal(result.details.patchId, sha);
+    assert.equal(result.details.base, "deadbeef");
   });
 
   it("rad_repo_probe surfaces repo, branch, node status, and tool registry", async () => {
@@ -225,7 +252,7 @@ describe("core radicle tools", () => {
       "rad .": { code: 0, stdout: "rad:z123\n" },
       "which rad-plan": { code: 1 },
       "which rad-context": { code: 1 },
-      "rad patch list --open": { code: 0, stdout: "abc1234 some patch\ndef5678 another\n" },
+      "rad patch list": { code: 0, stdout: "abc1234 some patch\ndef5678 another\n" },
     });
     const result = await s.tool("rad_patch_list").execute("1", {});
     assert.equal(result.details.ok, true);

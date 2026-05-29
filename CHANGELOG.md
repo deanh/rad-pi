@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Extracted from [rad-skill](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:zvBj4kByGeQSrSy2c4H7fyK42cS8) which contains the original development history.
 
+## [1.6.0] - 2026-05-29
+
+### Added
+
+- `rad_patch_submit` now supports Radicle push options for advanced patch creation:
+  - `base` → `git push -o patch.base=<rev>` for patches based on a non-default commit
+  - `draft` → `git push -o patch.draft`
+  - `branch` → `git push -o patch.branch=<name>`
+  - `noSync` → `git push -o no-sync`
+- `rad_patch_show` can include diffs via `--patch`.
+- Issue tools now support solved/all/assigned list and state workflows where applicable.
+
+### Changed
+
+- Updated the bundled Radicle skill and command reference to match the latest upstream `rad-skill` guidance.
+- `rad_patch_list` now uses `rad patch list` for open patches and boolean list flags for filtered states.
+- `rad_patch_review` now uses `-m` for review messages, matching current Radicle CLI guidance.
+
+### Fixed
+
+- Corrected Radicle CLI flag documentation for list filters, label/assignment deletion, patch comments, clone paths, and patch base workflows.
+
 ## [1.5.0] - 2026-04-16
 
 ### Removed

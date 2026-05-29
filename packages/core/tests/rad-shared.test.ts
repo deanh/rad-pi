@@ -13,6 +13,7 @@ import {
   hasWorkingTreeChanges,
   getHeadSha,
   getMergeBase,
+  pushPatch,
 } from "../lib/rad-shared.ts";
 
 // --- hasTool ---
@@ -169,6 +170,17 @@ describe("command helpers", () => {
       "rad cob list --repo rad:z123 --type xyz.radicle.patch": { code: 0, stdout: "abc123\ndef456\n" },
     });
     assert.deepEqual(await listPatchIds(pi, "rad:z123"), ["abc123", "def456"]);
+  });
+
+  it("pushPatch supports patch.base and other push options", async () => {
+    const sha = "1234567890abcdef1234567890abcdef12345678";
+    const pi = makePi({
+      "git push rad -o patch.draft -o patch.base=deadbeef -o patch.branch=feature/test -o no-sync HEAD:refs/patches": {
+        code: 0,
+        stderr: `created patch ${sha}\n`,
+      },
+    });
+    assert.equal(await pushPatch(pi, { base: "deadbeef", draft: true, branch: "feature/test", noSync: true }), sha);
   });
 
   it("commentOnIssue returns true when rad issue comment succeeds", async () => {

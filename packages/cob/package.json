@@ -23,7 +23,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
-    "@rad-pi/core": "1.5.1"
+    "@rad-pi/core": "1.6.0"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "^0.64.0",
