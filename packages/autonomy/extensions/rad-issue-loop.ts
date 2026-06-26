@@ -1,5 +1,5 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { buildSessionContext, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { buildSessionContext, convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
 import { parseExtractionResponse, mergeFilesTouched, extractContextId, parseCommitShas } from "@rad-pi/cob/lib/rad-context-utils.ts";
 import {

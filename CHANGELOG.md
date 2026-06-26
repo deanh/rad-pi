@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Extracted from [rad-skill](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:zvBj4kByGeQSrSy2c4H7fyK42cS8) which contains the original development history.
 
+## [1.6.1] - 2026-06-26
+
+### Changed
+
+- Updated pi coding agent imports and peer dependency from `@mariozechner/pi-coding-agent` to `@earendil-works/pi-coding-agent` `^0.80.2`.
+- Refreshed the package lockfile and applied non-breaking npm audit fixes.
+
 ## [1.6.0] - 2026-05-29
 
 ### Added

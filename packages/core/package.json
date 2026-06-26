@@ -1,6 +1,6 @@
 {
   "name": "@rad-pi/core",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "description": "Deterministic Radicle agent tooling for pi",
   "keywords": [
@@ -25,7 +25,7 @@
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "^0.64.0",
-    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@earendil-works/pi-coding-agent": "^0.80.2",
     "@sinclair/typebox": "*"
   },
   "pi": {

@@ -7,7 +7,7 @@
  *   Loop 2 (rad-orchestrator --loop): approved plan → execution → patch
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { complete } from "@mariozechner/pi-ai";
 import {
   type Issue,

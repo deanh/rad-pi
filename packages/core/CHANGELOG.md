@@ -1,5 +1,12 @@
 # @rad-pi/core
 
+## 1.6.1
+
+### Patch Changes
+
+- Update pi coding agent peer dependency and imports to `@earendil-works/pi-coding-agent` `^0.80.2`.
+- Apply non-breaking npm audit lockfile updates.
+
 ## 1.6.0
 
 ### Minor Changes

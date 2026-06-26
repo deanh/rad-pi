@@ -1,6 +1,6 @@
 {
   "name": "rad-pi",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "description": "Default Radicle package for pi: core deterministic tooling",
   "keywords": [
@@ -29,11 +29,11 @@
     "test": "npm run test --workspaces --if-present"
   },
   "dependencies": {
-    "@rad-pi/core": "1.6.0"
+    "@rad-pi/core": "1.6.1"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "^0.64.0",
-    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@earendil-works/pi-coding-agent": "^0.80.2",
     "@sinclair/typebox": "*"
   },
   "pi": {
